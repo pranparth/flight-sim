@@ -12,8 +12,8 @@ export class PhysicsTestSuite {
   constructor() {
     console.log('🧪 Starting Physics Test Suite...\n');
     this.aircraft = new Aircraft({ type: 'spitfire' });
-    const config = getAircraftConfig('spitfire');
-    this.dynamics = new FlightDynamics(config);
+    // Access the dynamics instance from the aircraft
+    this.dynamics = this.aircraft.getFlightDynamics();
   }
 
   async runAllTests(): Promise<void> {
@@ -155,7 +155,8 @@ export class PhysicsTestSuite {
       (this.aircraft as any)._testSetState({
         angleOfAttack: 30 * Math.PI / 180 // Very high AoA
       });
-      const deepStallSeverity = this.dynamics.getStallSeverity(state);
+      const deepStallState = this.aircraft.getState();
+      const deepStallSeverity = this.dynamics.getStallSeverity(deepStallState);
       
       this.assert(deepStallSeverity > stallSeverity, 'Deep stall should be more severe than progressive stall');
       

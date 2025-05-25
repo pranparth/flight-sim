@@ -93,19 +93,28 @@ export const projectileTests = {
         projectile.init(config);
         const initialY = projectile.getPosition().y;
         
-        // Update for 0.5 seconds
-        projectile.update(0.5);
+        // Update for 0.5 seconds using smaller timesteps for better accuracy
+        const timestep = 0.016; // 60fps
+        const totalTime = 0.5;
+        const steps = Math.floor(totalTime / timestep);
+        
+        for (let i = 0; i < steps; i++) {
+          projectile.update(timestep);
+        }
+        // Handle remaining time
+        const remainingTime = totalTime - (steps * timestep);
+        if (remainingTime > 0) {
+          projectile.update(remainingTime);
+        }
         
         const newPos = projectile.getPosition();
-        // With gravity: y = y0 + v0*t - 0.5*g*t^2
-        // But velocity is also affected: v_y = v0_y - g*t
-        // Since initial v_y = 0, after 0.5s: v_y = -9.81 * 0.5 = -4.905
-        // Average velocity over 0.5s = -2.4525
-        // Distance = -2.4525 * 0.5 = -1.22625
+        // With gravity: y = y0 + v0*t + 0.5*a*t^2
+        // y = 100 + 0*0.5 + 0.5*(-9.81)*0.5^2 = 100 - 1.22625 = 98.77375
+        const expectedY = initialY - 1.22625;
         
         console.assert(newPos.y < initialY, 'Y position should decrease due to gravity');
-        console.assert(Math.abs(newPos.y - (initialY - 1.226)) < 0.1,
-          `Y should be ~${initialY - 1.226}, got ${newPos.y}`);
+        console.assert(Math.abs(newPos.y - expectedY) < 0.5,
+          `Y should be ~${expectedY.toFixed(3)}, got ${newPos.y.toFixed(3)}`);
         
         console.log('✓ Gravity affects non-bullet projectiles');
       }

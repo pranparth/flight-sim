@@ -130,7 +130,7 @@ export class ResetTester {
       
       // Test 1: Out of bounds with low speed (should reset)
       (this.aircraft as any)._testSetState({
-        position: new THREE.Vector3(6000, 100, 0),
+        position: new THREE.Vector3(15000, 100, 0), // Beyond 14000 limit
         airspeed: 30,
         health: 100
       });
@@ -148,7 +148,7 @@ export class ResetTester {
       
       // Test 2: Out of bounds with high speed (should turn back)
       (this.aircraft as any)._testSetState({
-        position: new THREE.Vector3(6000, 100, 0),
+        position: new THREE.Vector3(15000, 100, 0), // Beyond 14000 limit
         rotation: new THREE.Euler(0, 0, 0),
         airspeed: 100,
         health: 100

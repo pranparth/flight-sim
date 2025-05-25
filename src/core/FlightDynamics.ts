@@ -128,7 +128,7 @@ export class FlightDynamics {
     return forward.multiplyScalar(thrustMagnitude);
   }
   
-  private getThrottleEfficiency(throttle: number): number {
+  getThrottleEfficiency(throttle: number): number {
     // Engine efficiency curve - not perfectly linear
     // Low throttle is less efficient, peak efficiency around 80%
     if (throttle < 0.1) return 0.3;
@@ -303,9 +303,34 @@ export class FlightDynamics {
     this.config.maxThrust = Math.max(0, thrust);
   }
   
+  // Additional methods for physics testing
   getStallSeverity(state: AircraftState): number {
-    const stallEffects = this.calculateStallEffects(state);
-    return 1.0 - stallEffects.liftReduction;
+    const criticalAOA = 15 * Math.PI / 180;
+    const currentAOA = Math.abs(state.angleOfAttack);
+    
+    if (currentAOA <= criticalAOA) {
+      return 0; // No stall
+    }
+    
+    // Progressive stall (15-35 degrees)
+    const progressiveStallMax = 35 * Math.PI / 180;
+    if (currentAOA <= progressiveStallMax) {
+      return (currentAOA - criticalAOA) / (progressiveStallMax - criticalAOA) * 0.5;
+    }
+    
+    // Deep stall (35+ degrees) - more severe
+    const deepStallProgress = Math.min(1.0, (currentAOA - progressiveStallMax) / (20 * Math.PI / 180));
+    return 0.5 + deepStallProgress * 0.5; // 0.5 to 1.0
+  }
+  
+  reset(): void {
+    // Reset engine state
+    this.engineState = {
+      actualThrottle: 0,
+      targetThrottle: 0,
+      rpm: this.idleRpm,
+      temperature: 20
+    };
   }
   
   getOptimalClimbAngle(state: AircraftState): number {

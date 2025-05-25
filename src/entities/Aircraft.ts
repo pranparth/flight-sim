@@ -402,6 +402,18 @@ export class Aircraft {
     this.state.health = 100;
     this.state.fuel = 100;
     
+    // Reset flight dynamics engine state
+    this.dynamics.reset();
+    
+    // Reset damage state
+    this.engineDamage = 0;
+    this.controlDamage = { roll: 0, pitch: 0, yaw: 0 };
+    this.fuelLeakRate = 1.0;
+    this.isOnFire = false;
+    this.isSpinning = false;
+    this.spinDirection = null;
+    this.isDestroyed = false;
+    
     // Update mesh position
     this.mesh.position.copy(this.state.position);
     this.mesh.rotation.copy(this.state.rotation);
@@ -412,13 +424,53 @@ export class Aircraft {
   
   // Test helper methods (only use for testing)
   _testSetState(updates: Partial<AircraftState>): void {
-    Object.assign(this.state, updates);
-    if (updates.position) {
-      this.mesh.position.copy(this.state.position);
-    }
+    // Handle rotation specially to preserve THREE.Euler object
     if (updates.rotation) {
+      if (updates.rotation instanceof THREE.Euler) {
+        this.state.rotation.copy(updates.rotation);
+      } else {
+        // Handle plain object with x, y, z properties
+        this.state.rotation.set(
+          (updates.rotation as any).x || this.state.rotation.x,
+          (updates.rotation as any).y || this.state.rotation.y,
+          (updates.rotation as any).z || this.state.rotation.z
+        );
+      }
       this.mesh.rotation.copy(this.state.rotation);
+      delete (updates as any).rotation; // Remove so Object.assign doesn't overwrite
     }
+    
+    // Handle position specially to preserve THREE.Vector3 object
+    if (updates.position) {
+      if (updates.position instanceof THREE.Vector3) {
+        this.state.position.copy(updates.position);
+      } else {
+        this.state.position.set(
+          (updates.position as any).x || this.state.position.x,
+          (updates.position as any).y || this.state.position.y,
+          (updates.position as any).z || this.state.position.z
+        );
+      }
+      this.mesh.position.copy(this.state.position);
+      delete (updates as any).position; // Remove so Object.assign doesn't overwrite
+    }
+    
+    // Handle velocity specially to preserve THREE.Vector3 object
+    if (updates.velocity) {
+      if (updates.velocity instanceof THREE.Vector3) {
+        this.state.velocity.copy(updates.velocity);
+      } else {
+        this.state.velocity.set(
+          (updates.velocity as any).x || this.state.velocity.x,
+          (updates.velocity as any).y || this.state.velocity.y,
+          (updates.velocity as any).z || this.state.velocity.z
+        );
+      }
+      delete (updates as any).velocity;
+    }
+    
+    // Handle remaining scalar properties
+    Object.assign(this.state, updates);
   }
   
   _testCheckCollisions(): void {
@@ -476,5 +528,10 @@ export class Aircraft {
   
   setHealth(health: number): void {
     this.state.health = Math.max(0, Math.min(100, health));
+  }
+  
+  // Testing helper - expose dynamics for physics tests
+  getFlightDynamics(): FlightDynamics {
+    return this.dynamics;
   }
 }

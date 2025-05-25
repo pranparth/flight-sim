@@ -152,8 +152,10 @@ export class DamageModel {
     // Calculate total health
     const totalHealth = this.getTotalHealthPercentage();
     
-    // Update aircraft health state
-    aircraft.setHealth(totalHealth);
+    // Update aircraft health state only if not destroyed
+    if (!aircraft.getIsDestroyed()) {
+      aircraft.setHealth(totalHealth);
+    }
     
     return {
       component: component,
