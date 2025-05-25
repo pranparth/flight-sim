@@ -9,6 +9,7 @@ export class SceneManager {
   // private _terrain?: THREE.Mesh;
   private ocean?: THREE.Mesh;
   private aircraft: Aircraft[] = [];
+  private clouds: THREE.Group[] = [];
   
   // Lighting
   private keyLight!: THREE.DirectionalLight;
@@ -135,6 +136,9 @@ export class SceneManager {
     // Add trees
     this.createTrees();
     
+    // Add clouds
+    this.createClouds();
+    
     // Keep some islands for variety
     const islandGeometry = new THREE.ConeGeometry(200, 50, 8, 1);
     const islandMaterial = createToonMaterial({
@@ -151,20 +155,22 @@ export class SceneManager {
   }
   
   private createHills(): void {
-    // Create rolling hills using multiple scaled spheres
-    const hillMaterial = createToonMaterial({
-      color: 0x4a6741,
-      emissive: 0x1a2a1a,
-      steps: 3,
-    });
+    // Create rolling hills using multiple scaled spheres with variety
+    const hillMaterials = [
+      createToonMaterial({ color: 0x4a6741, emissive: 0x1a2a1a, steps: 3 }), // Dark green
+      createToonMaterial({ color: 0x5a7751, emissive: 0x2a3a2a, steps: 3 }), // Medium green
+      createToonMaterial({ color: 0x6a8761, emissive: 0x3a4a3a, steps: 3 }), // Light green
+      createToonMaterial({ color: 0x7b8f3a, emissive: 0x3b4f1a, steps: 3 }), // Yellow-green
+    ];
     
-    // Main hill range
-    for (let i = 0; i < 8; i++) {
+    // Main hill range - increased count
+    for (let i = 0; i < 15; i++) {
       const size = 200 + Math.random() * 300;
       const hillGeometry = new THREE.SphereGeometry(size, 16, 12);
+      const hillMaterial = hillMaterials[Math.floor(Math.random() * hillMaterials.length)];
       const hill = new THREE.Mesh(hillGeometry, hillMaterial);
       
-      const angle = (i / 8) * Math.PI * 2;
+      const angle = (i / 15) * Math.PI * 2;
       const distance = 1000 + Math.random() * 1500;
       hill.position.set(
         Math.cos(angle) * distance,
@@ -177,6 +183,34 @@ export class SceneManager {
       hill.receiveShadow = true;
       this.scene.add(hill);
     }
+    
+    // Add additional hill clusters
+    const hillClusters = [
+      { center: new THREE.Vector3(1800, 0, 1800), count: 5 },
+      { center: new THREE.Vector3(-2200, 0, 800), count: 6 },
+      { center: new THREE.Vector3(600, 0, -2200), count: 4 },
+      { center: new THREE.Vector3(-1200, 0, -1800), count: 5 },
+    ];
+    
+    hillClusters.forEach(cluster => {
+      for (let i = 0; i < cluster.count; i++) {
+        const size = 150 + Math.random() * 250;
+        const hillGeometry = new THREE.SphereGeometry(size, 12, 8);
+        const hillMaterial = hillMaterials[Math.floor(Math.random() * hillMaterials.length)];
+        const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+        
+        hill.position.set(
+          cluster.center.x + (Math.random() - 0.5) * 600,
+          0,
+          cluster.center.z + (Math.random() - 0.5) * 600
+        );
+        
+        hill.scale.y = 0.3 + Math.random() * 0.4;
+        hill.castShadow = true;
+        hill.receiveShadow = true;
+        this.scene.add(hill);
+      }
+    });
     
     // Distant mountains
     const mountainMaterial = createToonMaterial({
@@ -210,11 +244,20 @@ export class SceneManager {
       createToonMaterial({ color: 0x8b4513, emissive: 0x4a2a0a, steps: 3 }), // Brown
       createToonMaterial({ color: 0x696969, emissive: 0x2a2a2a, steps: 3 }), // Gray
       createToonMaterial({ color: 0xb87333, emissive: 0x5a3a1a, steps: 3 }), // Copper
+      createToonMaterial({ color: 0xdaa520, emissive: 0x6a5010, steps: 3 }), // Goldenrod
+      createToonMaterial({ color: 0x8fbc8f, emissive: 0x4a5a4a, steps: 3 }), // Dark sea green
     ];
     
-    // Create a small town
-    const townCenter = new THREE.Vector3(800, 0, -800);
-    const buildingCount = 25;
+    // Create multiple town areas for more diversity
+    const townCenters = [
+      new THREE.Vector3(800, 0, -800),    // Main town
+      new THREE.Vector3(-1500, 0, 1200),  // Secondary town
+      new THREE.Vector3(2000, 0, 500),    // Eastern settlement
+      new THREE.Vector3(-500, 0, 2000),   // Southern village
+    ];
+    
+    townCenters.forEach((townCenter, townIndex) => {
+      const buildingCount = townIndex === 0 ? 35 : 15 + Math.floor(Math.random() * 10);
     
     for (let i = 0; i < buildingCount; i++) {
       const width = 40 + Math.random() * 60;
@@ -249,18 +292,30 @@ export class SceneManager {
       
       this.scene.add(building);
     }
+    });
     
-    // Add some industrial buildings near the coast
+    // Add more diverse structures
+    this.createSpecialBuildings();
+    
+    // Add industrial areas at multiple locations
+    const industrialAreas = [
+      { center: new THREE.Vector3(-1200, 0, -300), count: 3 },
+      { center: new THREE.Vector3(1800, 0, -1500), count: 2 },
+      { center: new THREE.Vector3(-2000, 0, -1000), count: 4 },
+    ];
+    
     const hangarGeometry = new THREE.BoxGeometry(200, 80, 300);
     const hangarMaterial = createToonMaterial({ color: 0x404040, emissive: 0x202020, steps: 2 });
     
-    for (let i = 0; i < 3; i++) {
-      const hangar = new THREE.Mesh(hangarGeometry, hangarMaterial);
-      hangar.position.set(
-        -1200 + i * 400,
-        40,
-        -300
-      );
+    industrialAreas.forEach(area => {
+      for (let i = 0; i < area.count; i++) {
+        const hangar = new THREE.Mesh(hangarGeometry, hangarMaterial);
+        hangar.position.set(
+          area.center.x + i * 400 + (Math.random() - 0.5) * 100,
+          40,
+          area.center.z + (Math.random() - 0.5) * 200
+        );
+        hangar.rotation.y = Math.random() * Math.PI * 0.25;
       hangar.castShadow = true;
       hangar.receiveShadow = true;
       
@@ -271,8 +326,95 @@ export class SceneManager {
       roof.rotation.z = Math.PI / 2;
       hangar.add(roof);
       
-      this.scene.add(hangar);
-    }
+        this.scene.add(hangar);
+      }
+    });
+  }
+  
+  private createSpecialBuildings(): void {
+    // Add some unique landmarks
+    
+    // Church with tower
+    const churchPosition = new THREE.Vector3(900, 0, -600);
+    const churchBody = new THREE.BoxGeometry(80, 60, 120);
+    const churchMaterial = createToonMaterial({ color: 0x8b7355, emissive: 0x4a3a2a, steps: 3 });
+    const church = new THREE.Mesh(churchBody, churchMaterial);
+    church.position.copy(churchPosition);
+    church.position.y = 30;
+    
+    // Church tower
+    const towerGeometry = new THREE.BoxGeometry(30, 120, 30);
+    const tower = new THREE.Mesh(towerGeometry, churchMaterial);
+    tower.position.set(-25, 30, 0);
+    church.add(tower);
+    
+    // Spire
+    const spireGeometry = new THREE.ConeGeometry(20, 40, 4);
+    const spire = new THREE.Mesh(spireGeometry, createToonMaterial({ color: 0x4a4a4a, emissive: 0x2a2a2a, steps: 2 }));
+    spire.position.y = 80;
+    spire.rotation.y = Math.PI / 4;
+    tower.add(spire);
+    
+    church.castShadow = true;
+    church.receiveShadow = true;
+    this.scene.add(church);
+    
+    // Water towers at various locations
+    const waterTowerPositions = [
+      new THREE.Vector3(1200, 0, 200),
+      new THREE.Vector3(-800, 0, 1500),
+      new THREE.Vector3(2200, 0, -1200),
+    ];
+    
+    waterTowerPositions.forEach(pos => {
+      const baseGeometry = new THREE.CylinderGeometry(15, 25, 80, 8);
+      const baseMaterial = createToonMaterial({ color: 0x5a5a5a, emissive: 0x2a2a2a, steps: 2 });
+      const base = new THREE.Mesh(baseGeometry, baseMaterial);
+      base.position.copy(pos);
+      base.position.y = 40;
+      
+      const tankGeometry = new THREE.SphereGeometry(40, 16, 12);
+      const tankMaterial = createToonMaterial({ color: 0x4169e1, emissive: 0x203480, steps: 3 });
+      const tank = new THREE.Mesh(tankGeometry, tankMaterial);
+      tank.position.y = 60;
+      tank.scale.y = 0.7;
+      base.add(tank);
+      
+      base.castShadow = true;
+      base.receiveShadow = true;
+      this.scene.add(base);
+    });
+    
+    // Radio towers for navigation
+    const radioTowerPositions = [
+      new THREE.Vector3(-2500, 0, -2500),
+      new THREE.Vector3(2500, 0, 2500),
+    ];
+    
+    radioTowerPositions.forEach(pos => {
+      const towerMaterial = createToonMaterial({ color: 0xff0000, emissive: 0x800000, steps: 2 });
+      
+      for (let i = 0; i < 5; i++) {
+        const segment = new THREE.BoxGeometry(10 - i * 1.5, 50, 10 - i * 1.5);
+        const part = new THREE.Mesh(segment, towerMaterial);
+        part.position.copy(pos);
+        part.position.y = 25 + i * 50;
+        part.castShadow = true;
+        this.scene.add(part);
+      }
+      
+      // Warning light on top
+      const lightGeometry = new THREE.SphereGeometry(5, 8, 6);
+      const lightMaterial = createToonMaterial({ 
+        color: 0xff0000, 
+        emissive: 0xff0000,
+        steps: 1 
+      });
+      const light = new THREE.Mesh(lightGeometry, lightMaterial);
+      light.position.copy(pos);
+      light.position.y = 275;
+      this.scene.add(light);
+    });
   }
   
   private createTrees(): void {
@@ -363,6 +505,74 @@ export class SceneManager {
     }
   }
   
+  private createClouds(): void {
+    // Create cloud layer using custom material for transparency
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.15, // Very transparent
+      depthWrite: false, // Prevents depth sorting issues
+      side: THREE.DoubleSide,
+    });
+    
+    // Different cloud types - much higher and sparser
+    const cloudTypes = [
+      { scale: new THREE.Vector3(300, 30, 200), height: 3000 },  // Very high wisps
+      { scale: new THREE.Vector3(400, 20, 300), height: 4000 },  // Cirrus-like
+    ];
+    
+    // Create cloud groups - very few clouds
+    const cloudGroups = [];
+    
+    for (let type = 0; type < cloudTypes.length; type++) {
+      const cloudType = cloudTypes[type];
+      const cloudCount = 3 + Math.floor(Math.random() * 3); // Only 3-6 clouds per layer
+      
+      for (let i = 0; i < cloudCount; i++) {
+        const cloudGroup = new THREE.Group();
+        
+        // Single flat plane per cloud for very subtle effect
+        const cloudGeometry = new THREE.PlaneGeometry(
+          200 + Math.random() * 300,  // Width
+          50 + Math.random() * 100    // Height
+        );
+        const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        
+        // Random rotation for variety
+        cloudMesh.rotation.x = -Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+        cloudMesh.rotation.z = Math.random() * Math.PI;
+        
+        cloudGroup.add(cloudMesh);
+        
+        // Position cloud group - very spread out
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 3000 + Math.random() * 5000; // Much further away
+        
+        cloudGroup.position.set(
+          Math.cos(angle) * distance,
+          cloudType.height + (Math.random() - 0.5) * 500, // More height variation
+          Math.sin(angle) * distance
+        );
+        
+        // Don't apply additional scaling - use natural size
+        
+        // Store for animation
+        cloudGroup.userData = {
+          baseY: cloudGroup.position.y,
+          driftSpeed: 0.2 + Math.random() * 0.5, // Slower drift
+          bobSpeed: 0.1 + Math.random() * 0.2, // Gentler bobbing
+          bobAmount: 5 + Math.random() * 10, // Less vertical movement
+        };
+        
+        cloudGroups.push(cloudGroup);
+        this.scene.add(cloudGroup);
+      }
+    }
+    
+    // Store cloud groups for animation
+    this.clouds = cloudGroups;
+  }
+  
   private async loadAssets(): Promise<void> {
     // Asset loading will be implemented later
     // For now, we'll use procedural geometry
@@ -392,6 +602,22 @@ export class SceneManager {
     // Update aircraft
     this.aircraft.forEach(aircraft => {
       aircraft.update(deltaTime);
+    });
+    
+    // Animate clouds
+    this.clouds.forEach(cloud => {
+      const data = cloud.userData;
+      
+      // Gentle drift
+      cloud.position.x += data.driftSpeed * deltaTime;
+      
+      // Wrap around when too far
+      if (cloud.position.x > 5000) {
+        cloud.position.x = -5000;
+      }
+      
+      // Gentle bobbing motion
+      cloud.position.y = data.baseY + Math.sin(elapsedTime * data.bobSpeed) * data.bobAmount;
     });
   }
   
