@@ -331,6 +331,21 @@ npm run typecheck    # TypeScript validation
 npm run lint         # ESLint checks (if configured)
 ```
 
+### Git Repository
+```bash
+# Remote repository
+git remote -v        # Shows: origin git@github.com:pranparth/flight-sim.git
+
+# Push changes
+git push             # Push to origin/main (upstream already set)
+
+# Pull latest changes
+git pull             # Pull from origin/main
+
+# Clone repository
+git clone git@github.com:pranparth/flight-sim.git
+```
+
 ## Architecture Decisions
 
 ### Why Three.js?
