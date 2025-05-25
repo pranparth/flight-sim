@@ -376,3 +376,101 @@ export function createSmokeParticle(): THREE.Points {
   
   return new THREE.Points(geometry, material);
 }
+
+// Create barrage balloon mesh
+export function createBarrageBalloonMesh(): THREE.Mesh {
+  // Create the main balloon shape using a sphere geometry
+  // Scale it to create an elongated balloon shape
+  const balloonGeometry = new THREE.SphereGeometry(1, 16, 12);
+  
+  // Scale to create elongated balloon shape (like a blimp)
+  balloonGeometry.scale(1, 1.2, 2.5);
+  
+  // Add segments/panels to the balloon for visual detail
+  const positions = balloonGeometry.attributes.position;
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const y = positions.getY(i);
+    
+    // Add subtle ridges to simulate balloon panels
+    const angle = Math.atan2(x, y);
+    const ridgeEffect = Math.sin(angle * 8) * 0.05;
+    const length = Math.sqrt(x * x + y * y);
+    
+    positions.setX(i, x + ridgeEffect * (x / length));
+    positions.setY(i, y + ridgeEffect * (y / length));
+  }
+  positions.needsUpdate = true;
+  
+  // Create material with toon shading
+  const balloonMaterial = new THREE.MeshToonMaterial({
+    color: 0x888888, // Gray color typical of barrage balloons
+    gradientMap: createGradientTexture(['#666666', '#888888', '#aaaaaa']),
+  });
+  
+  const balloon = new THREE.Mesh(balloonGeometry, balloonMaterial);
+  
+  // Add tail fins for stability (like the real barrage balloons)
+  const finGeometry = new THREE.ConeGeometry(0.5, 1.5, 4);
+  const finMaterial = new THREE.MeshToonMaterial({
+    color: 0x666666,
+    gradientMap: createGradientTexture(['#444444', '#666666', '#888888']),
+  });
+  
+  // Create 4 tail fins
+  const finPositions = [
+    { x: 0, y: 0.7, rotation: 0 },
+    { x: 0, y: -0.7, rotation: Math.PI },
+    { x: 0.7, y: 0, rotation: Math.PI / 2 },
+    { x: -0.7, y: 0, rotation: -Math.PI / 2 },
+  ];
+  
+  const finGroup = new THREE.Group();
+  finPositions.forEach(({ x, y, rotation }) => {
+    const fin = new THREE.Mesh(finGeometry, finMaterial);
+    fin.position.set(x, y, -2);
+    fin.rotation.x = Math.PI / 2;
+    fin.rotation.z = rotation;
+    finGroup.add(fin);
+  });
+  
+  // Add fins to balloon
+  balloon.add(finGroup);
+  
+  // Scale the balloon to appropriate size (about 20-30 meters long)
+  balloon.scale.set(10, 10, 10);
+  
+  // Enable shadows
+  balloon.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  
+  return balloon;
+}
+
+// Helper function to create gradient texture for toon shading
+function createGradientTexture(colors: string[]): THREE.Texture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = 1;
+  
+  const context = canvas.getContext('2d')!;
+  const gradient = context.createLinearGradient(0, 0, size, 0);
+  
+  colors.forEach((color, index) => {
+    gradient.addColorStop(index / (colors.length - 1), color);
+  });
+  
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, 1);
+  
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  
+  return texture;
+}

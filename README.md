@@ -7,8 +7,9 @@ A browser-based World War 2 combat flight simulator featuring cartoon-style grap
 - 🎮 Arcade-friendly flight physics with realistic feel
 - 🎨 Cartoon-style cel-shaded graphics
 - ✈️ Multiple iconic WW2 aircraft (Spitfire, Bf 109, P-51 Mustang, Zero)
-- 🎯 Combat mechanics (coming in Phase 2)
-- 🌍 Dynamic environment with ocean and islands
+- 🎯 Combat mechanics with working weapons
+- 🎈 Destructible barrage balloons as defensive targets
+- 🌍 Dynamic environment with ocean, islands, towns, and forests
 - 📱 Keyboard, mouse, and gamepad support
 
 ## Quick Start
@@ -33,9 +34,10 @@ A browser-based World War 2 combat flight simulator featuring cartoon-style grap
 - **Q/E**: Yaw (rudder left/right)
 - **Shift**: Increase throttle
 - **Ctrl**: Decrease throttle
-- **Space**: Fire weapons (Phase 2)
+- **Space**: Fire weapons
 - **Tab**: Boost (Phase 2)
 - **B**: Air brake
+- **R**: Reset aircraft position
 
 ### Camera Controls
 - **1**: Third person view
@@ -91,8 +93,15 @@ Phase 1 (Core Foundation) is complete:
 - ✅ 3D renderer with cartoon shading
 - ✅ Input handling
 - ✅ Test aircraft with procedural geometry
-- ✅ Camera system
+- ✅ Camera system with zoom controls
 - ✅ Basic terrain and environment
+
+Phase 2 (Combat System) is in progress:
+- ✅ Weapon systems (machine guns)
+- ✅ Basic damage model
+- ✅ Destructible barrage balloons
+- ⏳ AI opponents (coming soon)
+- ✅ HUD elements (basic)
 
 ## Upcoming Features
 

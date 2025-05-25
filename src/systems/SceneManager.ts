@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Aircraft } from '@entities/Aircraft';
+import { BarrageBalloon } from '@entities/BarrageBalloon';
 import { createToonMaterial } from '@utils/MaterialFactory';
 
 export class SceneManager {
@@ -10,6 +11,7 @@ export class SceneManager {
   private ocean?: THREE.Mesh;
   private aircraft: Aircraft[] = [];
   private clouds: THREE.Group[] = [];
+  private barrageBalloons: BarrageBalloon[] = [];
   
   // Lighting
   private keyLight!: THREE.DirectionalLight;
@@ -67,6 +69,9 @@ export class SceneManager {
     
     // Create simple terrain islands
     this.createTerrain();
+    
+    // Create barrage balloons
+    this.createBarrageBalloons();
   }
   
   private createSkybox(): void {
@@ -617,6 +622,17 @@ export class SceneManager {
       aircraft.update(deltaTime);
     });
     
+    // Update barrage balloons
+    this.barrageBalloons = this.barrageBalloons.filter(balloon => {
+      balloon.update(deltaTime);
+      if (balloon.shouldRemove()) {
+        this.scene.remove(balloon.getObject3D());
+        balloon.dispose();
+        return false;
+      }
+      return true;
+    });
+    
     // Animate clouds
     this.clouds.forEach(cloud => {
       const data = cloud.userData;
@@ -708,5 +724,52 @@ export class SceneManager {
       sun.setFromSphericalCoords(1, phi, theta);
       this.skybox.material.uniforms['sunPosition'].value.copy(sun);
     }
+  }
+  
+  private createBarrageBalloons(): void {
+    // Strategic balloon placements
+    const balloonPlacements = [
+      // Coastal defense line
+      { position: new THREE.Vector3(-1500, 0, -3000), count: 3, altitude: 400 },
+      { position: new THREE.Vector3(1500, 0, -3500), count: 3, altitude: 450 },
+      { position: new THREE.Vector3(3000, 0, -2000), count: 2, altitude: 500 },
+      
+      // Town protection
+      { position: new THREE.Vector3(2000, 0, -2000), count: 4, altitude: 600 },
+      { position: new THREE.Vector3(-3500, 0, 3000), count: 3, altitude: 550 },
+      
+      // Industrial area defense
+      { position: new THREE.Vector3(-3000, 0, -750), count: 2, altitude: 400 },
+      { position: new THREE.Vector3(4500, 0, -3750), count: 2, altitude: 500 },
+      
+      // Strategic points
+      { position: new THREE.Vector3(0, 0, 0), count: 3, altitude: 700 },
+      { position: new THREE.Vector3(-5000, 0, -5000), count: 2, altitude: 450 },
+      { position: new THREE.Vector3(5000, 0, 5000), count: 2, altitude: 450 },
+    ];
+    
+    balloonPlacements.forEach(placement => {
+      for (let i = 0; i < placement.count; i++) {
+        // Spread balloons around the placement position
+        const offset = new THREE.Vector3(
+          (Math.random() - 0.5) * 800,
+          0,
+          (Math.random() - 0.5) * 800
+        );
+        
+        const position = placement.position.clone().add(offset);
+        const altitude = placement.altitude + (Math.random() - 0.5) * 100;
+        
+        const balloon = new BarrageBalloon(position, altitude);
+        this.barrageBalloons.push(balloon);
+        this.scene.add(balloon.getObject3D());
+      }
+    });
+    
+    console.log(`Created ${this.barrageBalloons.length} barrage balloons`);
+  }
+  
+  getBarrageBalloons(): BarrageBalloon[] {
+    return this.barrageBalloons;
   }
 }
