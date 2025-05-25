@@ -39,19 +39,33 @@ export async function testCameraZoom(): Promise<void> {
   const initialZoom = controller.getZoomLevel();
   console.assert(initialZoom === 1, `Initial zoom should be 1, got ${initialZoom}`);
   
-  // Test 2: Zoom out
+  // Test 2: Zoom out with wheel
   simulateWheel(100);
   await new Promise(resolve => setTimeout(resolve, 100));
   const zoomedOut = controller.getZoomLevel();
   console.assert(zoomedOut > 1, `Zoom out should increase zoom level, got ${zoomedOut}`);
   
-  // Test 3: Zoom in
+  // Test 3: Zoom in with wheel
   simulateWheel(-200);
   await new Promise(resolve => setTimeout(resolve, 100));
   const zoomedIn = controller.getZoomLevel();
   console.assert(zoomedIn < zoomedOut, `Zoom in should decrease zoom level, got ${zoomedIn}`);
   
-  // Test 4: Zoom limits
+  // Test 4: Keyboard zoom out
+  controller.setZoomLevel(1); // Reset
+  simulateKeyPress('-');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const keyboardZoomOut = controller.getZoomLevel();
+  console.assert(keyboardZoomOut > 1, `Keyboard zoom out should increase zoom level, got ${keyboardZoomOut}`);
+  
+  // Test 5: Keyboard zoom in
+  simulateKeyPress('=');
+  simulateKeyPress('=');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const keyboardZoomIn = controller.getZoomLevel();
+  console.assert(keyboardZoomIn < keyboardZoomOut, `Keyboard zoom in should decrease zoom level, got ${keyboardZoomIn}`);
+  
+  // Test 6: Zoom limits
   for (let i = 0; i < 20; i++) {
     simulateWheel(-100);
   }

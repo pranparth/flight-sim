@@ -111,6 +111,14 @@ export class CameraController {
       case 'C':
         this.resetCamera();
         break;
+      case '-':
+      case '_':
+        this.zoomOut();
+        break;
+      case '=':
+      case '+':
+        this.zoomIn();
+        break;
     }
   }
   
@@ -287,5 +295,13 @@ export class CameraController {
   
   private easeOutCubic(t: number): number {
     return 1 - Math.pow(1 - t, 3);
+  }
+  
+  zoomIn(): void {
+    this.targetZoomLevel = Math.max(this.minZoom, this.targetZoomLevel - this.zoomSpeed);
+  }
+  
+  zoomOut(): void {
+    this.targetZoomLevel = Math.min(this.maxZoom, this.targetZoomLevel + this.zoomSpeed);
   }
 }

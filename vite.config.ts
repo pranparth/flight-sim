@@ -1,9 +1,8 @@
 import { defineConfig } from 'vite';
 import path from 'path';
-import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
-  plugins: [basicSsl()],
+  plugins: [],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -16,7 +15,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    https: true,
+    https: false,
   },
   build: {
     target: 'esnext',
