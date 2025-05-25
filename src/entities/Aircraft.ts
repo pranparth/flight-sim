@@ -272,8 +272,8 @@ export class Aircraft {
       this.reset();
     }
     
-    // Bounds checking - keep aircraft in playable area
-    const maxDistance = 5000;
+    // Bounds checking - keep aircraft in playable area (expanded for larger map)
+    const maxDistance = 14000; // Increased from 5000 to match larger environment
     const horizontalDistance = Math.sqrt(
       this.state.position.x * this.state.position.x + 
       this.state.position.z * this.state.position.z

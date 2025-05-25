@@ -18,7 +18,7 @@ export class SceneManager {
   
   constructor() {
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x87ceeb, 500, 5000);
+    this.scene.fog = new THREE.Fog(0x87ceeb, 1000, 15000);
   }
   
   async init(): Promise<void> {
@@ -89,8 +89,8 @@ export class SceneManager {
   }
   
   private createOcean(): void {
-    // Create ground plane first
-    const groundGeometry = new THREE.PlaneGeometry(10000, 10000);
+    // Create ground plane first - increased size
+    const groundGeometry = new THREE.PlaneGeometry(30000, 30000);
     const groundMaterial = new THREE.MeshPhongMaterial({
       color: 0x3a5f3a, // Dark green color
       emissive: 0x1a2f1a,
@@ -105,8 +105,8 @@ export class SceneManager {
     ground.receiveShadow = true;
     this.scene.add(ground);
     
-    // Create ocean on top
-    const oceanGeometry = new THREE.PlaneGeometry(10000, 10000, 100, 100);
+    // Create ocean on top - increased size
+    const oceanGeometry = new THREE.PlaneGeometry(30000, 30000, 150, 150);
     
     // Simple ocean material with cartoon style
     const oceanMaterial = new THREE.MeshPhongMaterial({
@@ -148,7 +148,7 @@ export class SceneManager {
     });
     
     const island = new THREE.Mesh(islandGeometry, islandMaterial);
-    island.position.set(2500, -25, 2500);
+    island.position.set(6000, -25, 6000);
     island.castShadow = true;
     island.receiveShadow = true;
     this.scene.add(island);
@@ -163,15 +163,15 @@ export class SceneManager {
       createToonMaterial({ color: 0x7b8f3a, emissive: 0x3b4f1a, steps: 3 }), // Yellow-green
     ];
     
-    // Main hill range - increased count
-    for (let i = 0; i < 15; i++) {
-      const size = 200 + Math.random() * 300;
+    // Main hill range - increased count and spread
+    for (let i = 0; i < 25; i++) {
+      const size = 300 + Math.random() * 500;
       const hillGeometry = new THREE.SphereGeometry(size, 16, 12);
       const hillMaterial = hillMaterials[Math.floor(Math.random() * hillMaterials.length)];
       const hill = new THREE.Mesh(hillGeometry, hillMaterial);
       
-      const angle = (i / 15) * Math.PI * 2;
-      const distance = 1000 + Math.random() * 1500;
+      const angle = (i / 25) * Math.PI * 2;
+      const distance = 2000 + Math.random() * 6000;
       hill.position.set(
         Math.cos(angle) * distance,
         0,
@@ -184,12 +184,14 @@ export class SceneManager {
       this.scene.add(hill);
     }
     
-    // Add additional hill clusters
+    // Add additional hill clusters - spread further
     const hillClusters = [
-      { center: new THREE.Vector3(1800, 0, 1800), count: 5 },
-      { center: new THREE.Vector3(-2200, 0, 800), count: 6 },
-      { center: new THREE.Vector3(600, 0, -2200), count: 4 },
-      { center: new THREE.Vector3(-1200, 0, -1800), count: 5 },
+      { center: new THREE.Vector3(4500, 0, 4500), count: 7 },
+      { center: new THREE.Vector3(-5500, 0, 2000), count: 8 },
+      { center: new THREE.Vector3(1500, 0, -6000), count: 6 },
+      { center: new THREE.Vector3(-3000, 0, -4500), count: 7 },
+      { center: new THREE.Vector3(7000, 0, -1000), count: 5 },
+      { center: new THREE.Vector3(-2000, 0, 7000), count: 6 },
     ];
     
     hillClusters.forEach(cluster => {
@@ -200,9 +202,9 @@ export class SceneManager {
         const hill = new THREE.Mesh(hillGeometry, hillMaterial);
         
         hill.position.set(
-          cluster.center.x + (Math.random() - 0.5) * 600,
+          cluster.center.x + (Math.random() - 0.5) * 1200,
           0,
-          cluster.center.z + (Math.random() - 0.5) * 600
+          cluster.center.z + (Math.random() - 0.5) * 1200
         );
         
         hill.scale.y = 0.3 + Math.random() * 0.4;
@@ -212,19 +214,19 @@ export class SceneManager {
       }
     });
     
-    // Distant mountains
+    // Distant mountains - larger and further
     const mountainMaterial = createToonMaterial({
       color: 0x5a6a5a,
       emissive: 0x2a2a2a,
       steps: 2,
     });
     
-    for (let i = 0; i < 5; i++) {
-      const mountainGeometry = new THREE.ConeGeometry(600 + Math.random() * 400, 400 + Math.random() * 200, 8, 1);
+    for (let i = 0; i < 12; i++) {
+      const mountainGeometry = new THREE.ConeGeometry(800 + Math.random() * 600, 600 + Math.random() * 400, 8, 1);
       const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
       
-      const angle = (i / 5) * Math.PI * 2;
-      const distance = 3000 + Math.random() * 1000;
+      const angle = (i / 12) * Math.PI * 2;
+      const distance = 8000 + Math.random() * 4000;
       mountain.position.set(
         Math.cos(angle) * distance,
         0,
@@ -248,12 +250,14 @@ export class SceneManager {
       createToonMaterial({ color: 0x8fbc8f, emissive: 0x4a5a4a, steps: 3 }), // Dark sea green
     ];
     
-    // Create multiple town areas for more diversity
+    // Create multiple town areas spread across larger area
     const townCenters = [
-      new THREE.Vector3(800, 0, -800),    // Main town
-      new THREE.Vector3(-1500, 0, 1200),  // Secondary town
-      new THREE.Vector3(2000, 0, 500),    // Eastern settlement
-      new THREE.Vector3(-500, 0, 2000),   // Southern village
+      new THREE.Vector3(2000, 0, -2000),   // Main town
+      new THREE.Vector3(-3500, 0, 3000),   // Secondary town
+      new THREE.Vector3(5000, 0, 1200),    // Eastern settlement
+      new THREE.Vector3(-1200, 0, 5000),   // Southern village
+      new THREE.Vector3(4000, 0, -5000),   // Northern outpost
+      new THREE.Vector3(-6000, 0, -1000),  // Western settlement
     ];
     
     townCenters.forEach((townCenter, townIndex) => {
@@ -297,11 +301,13 @@ export class SceneManager {
     // Add more diverse structures
     this.createSpecialBuildings();
     
-    // Add industrial areas at multiple locations
+    // Add industrial areas spread across map
     const industrialAreas = [
-      { center: new THREE.Vector3(-1200, 0, -300), count: 3 },
-      { center: new THREE.Vector3(1800, 0, -1500), count: 2 },
-      { center: new THREE.Vector3(-2000, 0, -1000), count: 4 },
+      { center: new THREE.Vector3(-3000, 0, -750), count: 4 },
+      { center: new THREE.Vector3(4500, 0, -3750), count: 3 },
+      { center: new THREE.Vector3(-5000, 0, -2500), count: 5 },
+      { center: new THREE.Vector3(2500, 0, 4000), count: 3 },
+      { center: new THREE.Vector3(-2000, 0, -6000), count: 4 },
     ];
     
     const hangarGeometry = new THREE.BoxGeometry(200, 80, 300);
@@ -359,11 +365,13 @@ export class SceneManager {
     church.receiveShadow = true;
     this.scene.add(church);
     
-    // Water towers at various locations
+    // Water towers spread across larger area
     const waterTowerPositions = [
-      new THREE.Vector3(1200, 0, 200),
-      new THREE.Vector3(-800, 0, 1500),
-      new THREE.Vector3(2200, 0, -1200),
+      new THREE.Vector3(3000, 0, 500),
+      new THREE.Vector3(-2000, 0, 3750),
+      new THREE.Vector3(5500, 0, -3000),
+      new THREE.Vector3(-4000, 0, -4000),
+      new THREE.Vector3(1000, 0, 6000),
     ];
     
     waterTowerPositions.forEach(pos => {
@@ -385,10 +393,12 @@ export class SceneManager {
       this.scene.add(base);
     });
     
-    // Radio towers for navigation
+    // Radio towers at map edges for navigation
     const radioTowerPositions = [
-      new THREE.Vector3(-2500, 0, -2500),
-      new THREE.Vector3(2500, 0, 2500),
+      new THREE.Vector3(-8000, 0, -8000),
+      new THREE.Vector3(8000, 0, 8000),
+      new THREE.Vector3(-8000, 0, 8000),
+      new THREE.Vector3(8000, 0, -8000),
     ];
     
     radioTowerPositions.forEach(pos => {
@@ -425,11 +435,14 @@ export class SceneManager {
       createToonMaterial({ color: 0x1b5e20, emissive: 0x0a2a0a, steps: 3 }),
     ];
     
-    // Forest areas
+    // Forest areas spread across larger map
     const forestAreas = [
-      { center: new THREE.Vector3(-1500, 0, 1000), radius: 600, density: 40 },
-      { center: new THREE.Vector3(1800, 0, 800), radius: 400, density: 25 },
-      { center: new THREE.Vector3(200, 0, -1800), radius: 500, density: 30 },
+      { center: new THREE.Vector3(-3750, 0, 2500), radius: 1200, density: 60 },
+      { center: new THREE.Vector3(4500, 0, 2000), radius: 800, density: 40 },
+      { center: new THREE.Vector3(500, 0, -4500), radius: 1000, density: 50 },
+      { center: new THREE.Vector3(-6000, 0, 4000), radius: 900, density: 45 },
+      { center: new THREE.Vector3(3000, 0, -6000), radius: 1100, density: 55 },
+      { center: new THREE.Vector3(-2000, 0, -3000), radius: 700, density: 35 },
     ];
     
     forestAreas.forEach(forest => {
@@ -479,14 +492,14 @@ export class SceneManager {
       }
     });
     
-    // Scattered individual trees
-    for (let i = 0; i < 50; i++) {
-      const x = (Math.random() - 0.5) * 4000;
-      const z = (Math.random() - 0.5) * 4000;
+    // Scattered individual trees across larger area
+    for (let i = 0; i < 150; i++) {
+      const x = (Math.random() - 0.5) * 16000;
+      const z = (Math.random() - 0.5) * 16000;
       
-      // Skip if too close to town or ocean
-      if (Math.abs(x - 800) < 500 && Math.abs(z + 800) < 500) continue;
-      if (Math.sqrt(x * x + z * z) < 500) continue;
+      // Skip if too close to main town
+      if (Math.abs(x - 2000) < 1000 && Math.abs(z + 2000) < 1000) continue;
+      if (Math.sqrt(x * x + z * z) < 1000) continue;
       
       const trunkHeight = 20 + Math.random() * 30;
       const trunkGeometry = new THREE.CylinderGeometry(4, 6, trunkHeight, 6);
@@ -544,9 +557,9 @@ export class SceneManager {
         
         cloudGroup.add(cloudMesh);
         
-        // Position cloud group - very spread out
+        // Position cloud group - spread across larger area
         const angle = Math.random() * Math.PI * 2;
-        const distance = 3000 + Math.random() * 5000; // Much further away
+        const distance = 5000 + Math.random() * 10000; // Much further away
         
         cloudGroup.position.set(
           Math.cos(angle) * distance,
@@ -612,8 +625,8 @@ export class SceneManager {
       cloud.position.x += data.driftSpeed * deltaTime;
       
       // Wrap around when too far
-      if (cloud.position.x > 5000) {
-        cloud.position.x = -5000;
+      if (cloud.position.x > 15000) {
+        cloud.position.x = -15000;
       }
       
       // Gentle bobbing motion
