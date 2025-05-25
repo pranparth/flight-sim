@@ -30,7 +30,8 @@ export const combatIntegrationTests = {
         // Start firing
         weaponManager.startFiring('player');
         
-        // Fire weapons
+        // Fire weapons - need to update matrix first
+        aircraft.getMesh().updateMatrixWorld();
         const transform = aircraft.getMesh().matrixWorld;
         weaponManager.fireWeapons('player', transform, 0);
         
@@ -78,14 +79,16 @@ export const combatIntegrationTests = {
         const weapon = new Weapon('machineGun_303', mount);
         weaponManager.addWeaponGroup('shooter', [weapon]);
         
-        // Fire at target
+        // Fire at target - update matrices first
+        shooter.getMesh().updateMatrixWorld();
+        target.getMesh().updateMatrixWorld();
         weaponManager.startFiring('shooter');
         weaponManager.fireWeapons('shooter', shooter.getMesh().matrixWorld, 0);
         
         // Update with very small timestep to ensure projectile doesn't pass through
         let totalHits = 0;
-        for (let i = 0; i < 100; i++) {
-          const hits = weaponManager.update(0.001, [target.getMesh()]);
+        for (let i = 0; i < 1000; i++) { // More iterations with tiny steps
+          const hits = weaponManager.update(0.0001, [target.getMesh()]); // Even smaller timestep
           totalHits += hits.length;
           
           if (hits.length > 0) {
@@ -162,8 +165,9 @@ export const combatIntegrationTests = {
         const totalAmmo = status.reduce((sum, w) => sum + w.ammo, 0);
         console.assert(totalAmmo === 4000, 'Should have 4000 total rounds');
         
-        // Fire some rounds
+        // Fire some rounds - create identity transform
         const transform = new THREE.Matrix4();
+        transform.identity();
         weaponManager.startFiring('player');
         weaponManager.fireWeapons('player', transform, 0);
         
@@ -229,6 +233,11 @@ export const combatIntegrationTests = {
         weaponManager.startFiring('enemy1');
         weaponManager.startFiring('enemy2');
         
+        // Update matrices before firing
+        player.getMesh().updateMatrixWorld();
+        enemy1.getMesh().updateMatrixWorld();
+        enemy2.getMesh().updateMatrixWorld();
+        
         weaponManager.fireWeapons('player', player.getMesh().matrixWorld, 0);
         weaponManager.fireWeapons('enemy1', enemy1.getMesh().matrixWorld, 100);
         weaponManager.fireWeapons('enemy2', enemy2.getMesh().matrixWorld, 200);
@@ -268,7 +277,8 @@ export const combatIntegrationTests = {
         damageManager.createDamageModel('target');
         
         // Apply massive damage to destroy aircraft
-        const hitPoint = new THREE.Vector3(0, 0.8, -0.5); // Cockpit hit
+        aircraft.getMesh().updateMatrixWorld();
+        const hitPoint = new THREE.Vector3(0, 100.8, 99.5); // Cockpit hit in world space
         const result = damageManager.applyDamage('target', 500, hitPoint, aircraft, 'explosive');
         
         console.assert(result !== null, 'Should apply damage');

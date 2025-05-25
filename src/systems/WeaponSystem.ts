@@ -72,7 +72,7 @@ export class Weapon {
   protected stats: WeaponStats;
   protected mountPoint: WeaponMount;
   protected currentAmmo: number;
-  protected lastFireTime: number = 0;
+  protected lastFireTime: number = -Infinity; // Allow first shot immediately
   protected roundsFired: number = 0;
   protected isFiring: boolean = false;
   
@@ -91,9 +91,12 @@ export class Weapon {
     const timeSinceLastShot = currentTime - this.lastFireTime;
     const fireInterval = 1000 / this.stats.rateOfFire; // milliseconds
     
+    // First shot can fire immediately
+    const canFireNow = this.lastFireTime === -Infinity || timeSinceLastShot >= fireInterval;
+    
     return (
       this.currentAmmo > 0 &&
-      timeSinceLastShot >= fireInterval &&
+      canFireNow &&
       this.isFiring
     );
   }

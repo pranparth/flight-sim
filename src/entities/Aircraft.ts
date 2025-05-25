@@ -473,4 +473,8 @@ export class Aircraft {
   getIsOnFire(): boolean {
     return this.isOnFire;
   }
+  
+  setHealth(health: number): void {
+    this.state.health = Math.max(0, Math.min(100, health));
+  }
 }

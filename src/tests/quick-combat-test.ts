@@ -58,8 +58,8 @@ export async function runQuickCombatTest() {
     console.log('\n4️⃣ Testing Projectile Pool...');
     const scene = new THREE.Scene();
     const pool = new ProjectilePool(scene, 100);
-    const p1 = pool.acquire();
-    const p2 = pool.acquire();
+    pool.acquire();
+    pool.acquire();
     console.log('✓ Projectile pool working');
     console.log(`  Active projectiles: ${pool.getActiveProjectiles().size}`);
     
@@ -72,7 +72,5 @@ export async function runQuickCombatTest() {
   }
 }
 
-// Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runQuickCombatTest();
-}
+// Export for use in browser tests
+export default runQuickCombatTest;

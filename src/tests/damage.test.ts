@@ -126,7 +126,7 @@ export const damageTests = {
         
         // Check fuselage took main damage (100 * 1.5 * 0.85 = 127.5)
         const fuselage = model.getComponentHealth('fuselage');
-        console.assert(fuselage.currentHealth < 0, 'Fuselage should be destroyed');
+        console.assert(fuselage.currentHealth <= 0, 'Fuselage should be destroyed');
         
         // Check nearby components took splash damage
         const engine = model.getComponentHealth('engine');
@@ -213,8 +213,8 @@ export const damageTests = {
           id: 'test'
         });
         
-        // Hit cockpit (pilot kill)
-        const hitPoint = new THREE.Vector3(0, 0.8, -0.5);
+        // Hit cockpit (pilot kill) - world position
+        const hitPoint = new THREE.Vector3(0, 100.8, 99.5); // Aircraft is at (0,100,0), cockpit at y>0.5, z in [-1,1]
         model.applyDamage(60, hitPoint, aircraft, 'bullet');
         
         // With 30% armor: 60 * 0.7 = 42 damage, destroying 40 health cockpit

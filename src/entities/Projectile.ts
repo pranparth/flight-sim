@@ -108,14 +108,14 @@ export class Projectile {
     // Store last position for collision detection
     this.lastPosition.copy(this.mesh.position);
     
-    // Apply velocity
-    const displacement = this.velocity.clone().multiplyScalar(deltaTime);
-    this.mesh.position.add(displacement);
-    
-    // Apply gravity for non-bullet projectiles
+    // Apply gravity for non-bullet projectiles BEFORE movement
     if (this.projectileType !== 'bullet') {
       this.velocity.y -= 9.81 * deltaTime;
     }
+    
+    // Apply velocity
+    const displacement = this.velocity.clone().multiplyScalar(deltaTime);
+    this.mesh.position.add(displacement);
     
     // Update distance traveled
     this.distanceTraveled += displacement.length();
