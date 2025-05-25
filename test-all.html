@@ -163,13 +163,14 @@
             <li>🔫 Weapon System Tests (6 tests)</li>
             <li>💥 Damage Model Tests (8 tests)</li>
             <li>🎮 Combat Integration Tests (6 tests)</li>
+            <li>🎈 Barrage Balloon Tests (4 tests)</li>
           </ul>
         </div>
         
         <div class="test-category">
           <h3>📊 Test Statistics</h3>
           <div id="stats">
-            <p>Total Tests: <span id="total-tests">31</span></p>
+            <p>Total Tests: <span id="total-tests">35</span></p>
             <p>Last Run: <span id="last-run">Never</span></p>
             <p>Success Rate: <span id="success-rate">N/A</span></p>
           </div>
@@ -214,6 +215,7 @@
       import { weaponTests } from '/src/tests/weapon.test.ts';
       import { damageTests } from '/src/tests/damage.test.ts';
       import { combatIntegrationTests } from '/src/tests/combat-integration.test.ts';
+      import { BarrageBalloonTester } from '/src/tests/barrage-balloon.test.ts';
       
       const output = document.getElementById('output');
       const runAllButton = document.getElementById('runAll');
@@ -333,6 +335,10 @@
           await runTestSuite(damageTests);
           await runTestSuite(combatIntegrationTests);
           
+          addToOutput('\n🎈 Barrage Balloon Tests:', 'info');
+          const balloonTester = new BarrageBalloonTester();
+          await balloonTester.runAllTests();
+          
           addToOutput('\n✨ All test suites completed!', 'success');
         } catch (error) {
           addToOutput('\n❌ Test suite failed: ' + error, 'error');
@@ -377,6 +383,10 @@
           await runTestSuite(weaponTests);
           await runTestSuite(damageTests);
           await runTestSuite(combatIntegrationTests);
+          
+          addToOutput('\n🎈 Barrage Balloon Tests:', 'info');
+          const balloonTester = new BarrageBalloonTester();
+          await balloonTester.runAllTests();
           
           addToOutput('\n✨ Combat tests completed!', 'success');
         } catch (error) {

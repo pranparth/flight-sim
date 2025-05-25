@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { CameraController, CameraMode } from '@systems/CameraController';
 import { Aircraft } from '@entities/Aircraft';
-import { Spitfire } from '@core/AircraftConfigs';
 
 // Helper to create test aircraft
 function createTestAircraft(): Aircraft {
-  const aircraft = new Aircraft(Spitfire, 'player');
-  aircraft.setPosition(new THREE.Vector3(0, 100, 0));
+  const aircraft = new Aircraft({ type: 'spitfire' });
+  // Set position using the aircraft's internal method
+  const mesh = aircraft.getMesh();
+  mesh.position.set(0, 100, 0);
   return aircraft;
 }
 
@@ -95,7 +96,6 @@ export async function testCameraReset(): Promise<void> {
   simulateWheel(200); // Zoom out
   await new Promise(resolve => setTimeout(resolve, 100));
   
-  const zoomedPosition = camera.position.clone();
   simulateKeyPress('c');
   
   // Allow time for reset animation
@@ -116,7 +116,7 @@ export async function testCameraReset(): Promise<void> {
   console.assert(modeAfterReset === CameraMode.CHASE, 'Reset should switch to CHASE mode');
   
   // Test 3: Reset maintains aircraft tracking
-  aircraft.setPosition(new THREE.Vector3(100, 200, 300));
+  aircraft.getMesh().position.set(100, 200, 300);
   simulateKeyPress('c');
   
   for (let i = 0; i < 10; i++) {

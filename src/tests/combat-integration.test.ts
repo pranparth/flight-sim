@@ -98,9 +98,8 @@ export const combatIntegrationTests = {
         console.assert(activeProjectiles.size > 0, 'Should have fired projectiles');
         
         // Debug: Log initial positions
-        let projPosition: THREE.Vector3 | null = null;
         activeProjectiles.forEach((proj: any) => {
-          projPosition = proj.getPosition();
+          proj.getPosition();
         });
         
         // Update with small timestep but not too small to avoid timeout

@@ -147,10 +147,15 @@ export class Game {
       enemy.update(cappedDelta);
     });
     
-    // Get all targetable objects (aircraft meshes)
+    // Get all targetable objects (aircraft meshes and barrage balloons)
     const targetables: THREE.Object3D[] = [
       this.playerAircraft.getMesh(),
-      ...this.enemyAircraft.map(e => e.getMesh())
+      ...this.enemyAircraft.map(e => e.getMesh()),
+      ...this.sceneManager.getBarrageBalloons().map(b => {
+        const obj = b.getObject3D();
+        obj.userData.balloonId = b.getState().position.toString(); // Use position as unique ID
+        return obj;
+      })
     ];
     
     // Update weapons and check for hits
@@ -158,23 +163,42 @@ export class Game {
     
     // Process hits
     hits.forEach(hit => {
+      // Check if it's an aircraft hit
       const targetId = hit.target.userData.aircraftId;
-      const targetAircraft = targetId === 'player' ? 
-        this.playerAircraft : 
-        this.enemyAircraft.find(e => e.getId() === targetId);
+      if (targetId) {
+        const targetAircraft = targetId === 'player' ? 
+          this.playerAircraft : 
+          this.enemyAircraft.find(e => e.getId() === targetId);
+        
+        if (targetAircraft) {
+          const damageResult = this.damageManager.applyDamage(
+            targetId,
+            hit.damage,
+            hit.hitPoint,
+            targetAircraft
+          );
+          
+          // Handle aircraft destruction
+          if (damageResult && damageResult.isDestroyed && targetAircraft.getIsDestroyed()) {
+            console.log(`Aircraft ${targetId} destroyed!`);
+            // TODO: Add destruction effects
+          }
+        }
+      }
       
-      if (targetAircraft) {
-        const damageResult = this.damageManager.applyDamage(
-          targetId,
-          hit.damage,
-          hit.hitPoint,
-          targetAircraft
+      // Check if it's a balloon hit
+      const balloonId = hit.target.userData.balloonId;
+      if (balloonId) {
+        const balloon = this.sceneManager.getBarrageBalloons().find(
+          b => b.getState().position.toString() === balloonId
         );
         
-        // Handle aircraft destruction
-        if (damageResult && damageResult.isDestroyed && targetAircraft.getIsDestroyed()) {
-          console.log(`Aircraft ${targetId} destroyed!`);
-          // TODO: Add destruction effects
+        if (balloon && !balloon.isDestroyed()) {
+          balloon.takeDamage(hit.damage);
+          
+          if (balloon.isDestroyed()) {
+            console.log(`Barrage balloon destroyed!`);
+          }
         }
       }
     });

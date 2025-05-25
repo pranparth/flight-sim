@@ -1,7 +1,6 @@
 // import * as THREE from 'three';
 import { Aircraft } from '../entities/Aircraft';
 import { FlightDynamics } from '../core/FlightDynamics';
-import { getAircraftConfig } from '../core/AircraftConfigs';
 
 // Comprehensive physics test suite for improved flight dynamics
 export class PhysicsTestSuite {
