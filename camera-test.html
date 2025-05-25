@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Control Test</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #1a1a1a;
+      color: white;
+      overflow: hidden;
+    }
+    
+    #controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 8px;
+      z-index: 1000;
+    }
+    
+    #controls h3 {
+      margin-top: 0;
+      color: #4fc3f7;
+    }
+    
+    .control-item {
+      margin: 10px 0;
+      font-size: 14px;
+    }
+    
+    .key {
+      display: inline-block;
+      background: #333;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-right: 8px;
+      font-family: monospace;
+    }
+    
+    #status {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    #test-results {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 300px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .test-title {
+      color: #4fc3f7;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    button {
+      background: #4fc3f7;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    
+    button:hover {
+      background: #29b6f6;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h3>Camera Controls</h3>
+    <div class="control-item">
+      <span class="key">Mouse Wheel</span> Zoom In/Out
+    </div>
+    <div class="control-item">
+      <span class="key">+/=</span> Zoom In (closer)
+    </div>
+    <div class="control-item">
+      <span class="key">-/_</span> Zoom Out (further)
+    </div>
+    <div class="control-item">
+      <span class="key">C</span> Reset Camera Behind Aircraft
+    </div>
+    <div class="control-item">
+      <span class="key">1-5</span> Switch Camera Modes
+    </div>
+    <div class="control-item">
+      <span class="key">W/S</span> Pitch Up/Down
+    </div>
+    <div class="control-item">
+      <span class="key">A/D</span> Roll Left/Right
+    </div>
+    <div class="control-item">
+      <span class="key">Q/E</span> Throttle Down/Up
+    </div>
+  </div>
+  
+  <div id="status">
+    <div>Camera Mode: <span id="camera-mode">CHASE</span></div>
+    <div>Zoom Level: <span id="zoom-level">1.00</span></div>
+    <div>Altitude: <span id="altitude">1000</span>m</div>
+    <div>Speed: <span id="speed">100</span> m/s</div>
+  </div>
+  
+  <div id="test-results">
+    <div class="test-title">Camera Tests</div>
+    <button id="run-tests">Run Camera Tests</button>
+    <div id="test-output"></div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+  <script type="module">
+    import { runCameraTests } from '/src/tests/camera-control.test.ts';
+    
+    // Hook up test button
+    document.getElementById('run-tests').addEventListener('click', async () => {
+      const output = document.getElementById('test-output');
+      output.innerHTML = '<p>Running tests...</p>';
+      
+      try {
+        // Capture console output
+        const logs = [];
+        const originalLog = console.log;
+        const originalAssert = console.assert;
+        const originalError = console.error;
+        
+        console.log = (...args) => {
+          logs.push(args.join(' '));
+          originalLog(...args);
+        };
+        
+        console.assert = (condition, ...args) => {
+          if (!condition) {
+            logs.push('❌ ' + args.join(' '));
+          }
+          originalAssert(condition, ...args);
+        };
+        
+        console.error = (...args) => {
+          logs.push('❌ ' + args.join(' '));
+          originalError(...args);
+        };
+        
+        await runCameraTests();
+        
+        // Restore console
+        console.log = originalLog;
+        console.assert = originalAssert;
+        console.error = originalError;
+        
+        // Display results
+        output.innerHTML = logs.map(log => {
+          if (log.includes('✓')) {
+            return `<p style="color: #4fc3f7;">${log}</p>`;
+          } else if (log.includes('❌')) {
+            return `<p style="color: #f44336;">${log}</p>`;
+          } else if (log.includes('✅')) {
+            return `<p style="color: #4caf50; font-weight: bold;">${log}</p>`;
+          }
+          return `<p>${log}</p>`;
+        }).join('');
+      } catch (error) {
+        output.innerHTML = `<p style="color: #f44336;">Test failed: ${error.message}</p>`;
+      }
+    });
+    
+    // Update status display
+    setInterval(() => {
+      const game = window.game;
+      if (game && game.cameraController && game.aircraft) {
+        document.getElementById('camera-mode').textContent = 
+          ['THIRD_PERSON', 'COCKPIT', 'CHASE', 'CINEMATIC', 'FREE'][game.cameraController.getMode()];
+        document.getElementById('zoom-level').textContent = 
+          game.cameraController.getZoomLevel().toFixed(2);
+        document.getElementById('altitude').textContent = 
+          Math.round(game.aircraft.getPosition().y);
+        document.getElementById('speed').textContent = 
+          Math.round(game.aircraft.getVelocity().length());
+      }
+    }, 100);
+  </script>
+</body>
+</html>
