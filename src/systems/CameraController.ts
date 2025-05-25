@@ -17,9 +17,10 @@ export class CameraController {
   // Camera positioning
   private offset = new THREE.Vector3(0, 5, -15);
   private lookOffset = new THREE.Vector3(0, 2, 10);
-  private currentOffset = new THREE.Vector3();
+  private currentPosition = new THREE.Vector3();
   private currentLookAt = new THREE.Vector3();
-  private forceAlignment = false;
+  private smoothedOffset = new THREE.Vector3();
+  private smoothedLookOffset = new THREE.Vector3();
   
   // Zoom control
   private zoomLevel = 1.0;
@@ -85,6 +86,11 @@ export class CameraController {
     
     // Initialize camera position
     this.applyMode(this.mode);
+    
+    // Initialize smoothed offsets to current mode's offsets
+    const config = this.modeConfigs[this.mode];
+    this.smoothedOffset.copy(config.offset);
+    this.smoothedLookOffset.copy(config.lookOffset);
     
     // Set up camera switching and controls
     window.addEventListener('keydown', (e) => this.handleKeyInput(e));
@@ -161,37 +167,37 @@ export class CameraController {
       const resetProgress = Math.min(this.resetTimer / this.resetDuration, 1);
       const easedProgress = this.easeOutCubic(resetProgress);
       
-      // Much faster lerp during reset to ensure proper alignment
-      this.positionLerp = THREE.MathUtils.lerp(0.3, 0.8, easedProgress);
-      this.rotationLerp = THREE.MathUtils.lerp(0.4, 0.9, easedProgress);
+      // Force the smoothed offsets to move quickly to the correct position
+      this.smoothedOffset.lerp(this.offset, easedProgress);
+      this.smoothedLookOffset.lerp(this.lookOffset, easedProgress);
       
       if (resetProgress >= 1) {
         this.isResetting = false;
-        this.applyMode(this.mode);
-        
-        // Final alignment to ensure camera is properly positioned
-        const targetPosition = this.target.getPosition();
-        const targetRotation = this.target.getRotation();
-        const finalPosition = this.calculateDesiredPosition(targetPosition, targetRotation);
-        const finalLookAt = this.calculateDesiredLookAt(targetPosition, targetRotation);
-        this.currentOffset.lerp(finalPosition, 0.5);
-        this.currentLookAt.lerp(finalLookAt, 0.5);
+        // Ensure we're exactly at the right offset
+        this.smoothedOffset.copy(this.offset);
+        this.smoothedLookOffset.copy(this.lookOffset);
       }
-    }
-    
-    // Calculate desired camera position based on mode
-    const desiredPosition = this.calculateDesiredPosition(targetPosition, targetRotation);
-    const desiredLookAt = this.calculateDesiredLookAt(targetPosition, targetRotation);
-    
-    // Smooth camera movement or force alignment if needed
-    if (this.forceAlignment) {
-      this.currentOffset.copy(desiredPosition);
-      this.currentLookAt.copy(desiredLookAt);
-      this.forceAlignment = false;
     } else {
-      this.currentOffset.lerp(desiredPosition, this.positionLerp);
-      this.currentLookAt.lerp(desiredLookAt, this.rotationLerp);
+      // Normal smooth following
+      this.smoothedOffset.lerp(this.offset, this.positionLerp);
+      this.smoothedLookOffset.lerp(this.lookOffset, this.rotationLerp);
     }
+    
+    // Calculate camera position by applying smoothed offset to aircraft
+    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(targetRotation);
+    
+    // Apply zoom to offset
+    const zoomedOffset = this.smoothedOffset.clone().multiplyScalar(this.zoomLevel);
+    const rotatedOffset = zoomedOffset.clone().applyMatrix4(rotationMatrix);
+    this.currentPosition.copy(targetPosition).add(rotatedOffset);
+    
+    // Calculate look-at position
+    const rotatedLookOffset = this.smoothedLookOffset.clone().applyMatrix4(rotationMatrix);
+    this.currentLookAt.copy(targetPosition).add(rotatedLookOffset);
+    
+    // Prevent camera from going below ground
+    const minHeight = 2;
+    this.currentPosition.y = Math.max(this.currentPosition.y, minHeight);
     
     // Apply camera shake if any
     if (this.shakeMagnitude > 0.01) {
@@ -200,12 +206,12 @@ export class CameraController {
         (Math.random() - 0.5) * this.shakeMagnitude,
         (Math.random() - 0.5) * this.shakeMagnitude
       );
-      this.currentOffset.add(shakeOffset);
+      this.currentPosition.add(shakeOffset);
       this.shakeMagnitude *= this.shakeDecay;
     }
     
     // Set camera position and look at target
-    this.camera.position.copy(this.currentOffset);
+    this.camera.position.copy(this.currentPosition);
     this.camera.lookAt(this.currentLookAt);
     
     // Special handling for specific modes
@@ -216,47 +222,6 @@ export class CameraController {
     }
   }
   
-  private calculateDesiredPosition(
-    targetPos: THREE.Vector3,
-    targetRot: THREE.Euler
-  ): THREE.Vector3 {
-    const position = new THREE.Vector3();
-    
-    if (this.mode === CameraMode.FREE) {
-      // Free camera doesn't follow the aircraft closely
-      return this.camera.position.clone();
-    }
-    
-    // Transform offset by aircraft rotation
-    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(targetRot);
-    const scaledOffset = this.offset.clone().multiplyScalar(this.zoomLevel);
-    const rotatedOffset = scaledOffset.applyMatrix4(rotationMatrix);
-    
-    // Add to target position
-    position.copy(targetPos).add(rotatedOffset);
-    
-    // Prevent camera from going below ground/water
-    const minHeight = 2;
-    position.y = Math.max(position.y, minHeight);
-    
-    return position;
-  }
-  
-  private calculateDesiredLookAt(
-    targetPos: THREE.Vector3,
-    targetRot: THREE.Euler
-  ): THREE.Vector3 {
-    if (this.mode === CameraMode.FREE) {
-      // Free camera looks at the aircraft
-      return targetPos.clone();
-    }
-    
-    // Calculate look-at point based on aircraft orientation
-    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(targetRot);
-    const rotatedLookOffset = this.lookOffset.clone().applyMatrix4(rotationMatrix);
-    
-    return targetPos.clone().add(rotatedLookOffset);
-  }
   
   shake(magnitude: number): void {
     this.shakeMagnitude = magnitude;
@@ -296,8 +261,10 @@ export class CameraController {
     this.targetZoomLevel = 1.0;
     this.zoomLevel = 1.0;
     
-    // Force immediate alignment on next update
-    this.forceAlignment = true;
+    // Reset the smoothed offsets to the default chase mode offsets
+    const config = this.modeConfigs[CameraMode.CHASE];
+    this.smoothedOffset.copy(config.offset);
+    this.smoothedLookOffset.copy(config.lookOffset);
     
     // Start reset animation for smooth transition
     this.isResetting = true;

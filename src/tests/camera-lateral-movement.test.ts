@@ -77,8 +77,26 @@ export async function testCameraResetAfterYaw(): Promise<void> {
   const camToAircraft = aircraftPos.clone().sub(camera.position).normalize();
   const dotProduct = aircraftForward.dot(camToAircraft);
   
-  console.log(`Camera alignment dot product: ${dotProduct}`);
+  console.log(`Camera alignment dot product immediately after reset: ${dotProduct}`);
   console.assert(dotProduct > 0.9, `Camera should be behind aircraft after reset, dot=${dotProduct}`);
+  
+  // IMPORTANT: Continue updating to ensure camera doesn't revert
+  console.log('Checking camera stability after reset...');
+  for (let i = 0; i < 60; i++) {
+    controller.update(0.016);
+  }
+  
+  // Check camera is STILL properly aligned (no reversion)
+  const aircraftPos2 = aircraft.getPosition();
+  const aircraftRot2 = aircraft.getRotation();
+  const aircraftForward2 = new THREE.Vector3(0, 0, 1);
+  aircraftForward2.applyEuler(aircraftRot2);
+  
+  const camToAircraft2 = aircraftPos2.clone().sub(camera.position).normalize();
+  const dotProduct2 = aircraftForward2.dot(camToAircraft2);
+  
+  console.log(`Camera alignment dot product after stability check: ${dotProduct2}`);
+  console.assert(dotProduct2 > 0.9, `Camera should remain behind aircraft (no reversion), dot=${dotProduct2}`);
   
   // Check camera is looking at aircraft
   const camDir = new THREE.Vector3();
@@ -140,6 +158,23 @@ export async function testCameraResetAfterBankAndTurn(): Promise<void> {
   
   const camPosError = camera.position.distanceTo(expectedCamPos);
   console.assert(camPosError < 5, `Camera position error should be small, got ${camPosError}`);
+  
+  // Continue updating to ensure no reversion
+  console.log('Checking camera stability after bank/turn reset...');
+  for (let i = 0; i < 60; i++) {
+    controller.update(0.016);
+  }
+  
+  // Verify camera is still aligned
+  const aircraftPos2 = aircraft.getPosition();
+  const aircraftRot2 = aircraft.getRotation();
+  const expectedOffset2 = new THREE.Vector3(0, 8, -20);
+  const rotMatrix2 = new THREE.Matrix4().makeRotationFromEuler(aircraftRot2);
+  expectedOffset2.applyMatrix4(rotMatrix2);
+  const expectedCamPos2 = aircraftPos2.clone().add(expectedOffset2);
+  
+  const camPosError2 = camera.position.distanceTo(expectedCamPos2);
+  console.assert(camPosError2 < 5, `Camera should remain stable (no reversion), error=${camPosError2}`);
   
   console.log('✓ Camera reset after bank and turn test passed');
 }
