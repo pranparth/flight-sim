@@ -70,7 +70,7 @@ export class SceneManager {
   
   private createSkybox(): void {
     this.skybox = new Sky();
-    this.skybox.scale.setScalar(10000);
+    this.skybox.scale.setScalar(50000); // Increased from 10000 to allow higher altitude flight
     this.scene.add(this.skybox);
     
     const skyUniforms = this.skybox.material.uniforms;
