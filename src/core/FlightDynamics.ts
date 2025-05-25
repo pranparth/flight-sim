@@ -12,10 +12,31 @@ export interface FlightForces {
   controlEffectiveness: number;
 }
 
+export interface EngineState {
+  actualThrottle: number;  // Current engine power (0-1)
+  targetThrottle: number;  // Desired throttle setting
+  rpm: number;            // Engine RPM
+  temperature: number;    // Engine temperature
+}
+
 export class FlightDynamics {
   private config: AircraftConfig;
   private airDensity = 1.225; // kg/m³ at sea level
   private gravity = 9.81; // m/s²
+  
+  // Engine simulation
+  private engineState: EngineState = {
+    actualThrottle: 0,
+    targetThrottle: 0,
+    rpm: 0,
+    temperature: 20
+  };
+  
+  // Engine response characteristics
+  private throttleResponseRate = 2.5; // How fast throttle responds (per second)
+  private rpmResponseRate = 1.8; // How fast RPM changes (per second)
+  private idleRpm = 800;
+  private maxRpm = 2800;
   
   constructor(config: AircraftConfig) {
     this.config = config;
@@ -24,13 +45,16 @@ export class FlightDynamics {
   calculateForces(
     state: AircraftState,
     controls: FlightControls,
-    _deltaTime: number
+    deltaTime: number
   ): FlightForces {
+    // Update engine state with throttle response
+    this.updateEngineState(controls, deltaTime);
+    
     // Calculate individual force components
     const thrust = this.calculateThrust(state, controls);
     const lift = this.calculateLift(state);
     const drag = this.calculateDrag(state);
-    const weight = this.calculateWeight();
+    const weight = this.calculateWeight(state); // Now includes pitch effects
     
     // Calculate control effectiveness based on airspeed
     const controlEffectiveness = this.calculateControlEffectiveness(state);
@@ -52,15 +76,65 @@ export class FlightDynamics {
     };
   }
   
-  private calculateThrust(state: AircraftState, controls: FlightControls): THREE.Vector3 {
-    // Thrust acts along the aircraft's forward direction
-    const thrustMagnitude = controls.throttle * this.config.maxThrust;
+  private updateEngineState(controls: FlightControls, deltaTime: number): void {
+    // Update target throttle
+    this.engineState.targetThrottle = controls.throttle;
+    
+    // Engine throttle response with lag
+    const throttleDiff = this.engineState.targetThrottle - this.engineState.actualThrottle;
+    const throttleChange = Math.sign(throttleDiff) * this.throttleResponseRate * deltaTime;
+    
+    if (Math.abs(throttleDiff) > Math.abs(throttleChange)) {
+      this.engineState.actualThrottle += throttleChange;
+    } else {
+      this.engineState.actualThrottle = this.engineState.targetThrottle;
+    }
+    
+    // Clamp throttle
+    this.engineState.actualThrottle = Math.max(0, Math.min(1, this.engineState.actualThrottle));
+    
+    // Update RPM based on actual throttle
+    const targetRpm = this.idleRpm + (this.maxRpm - this.idleRpm) * this.engineState.actualThrottle;
+    const rpmDiff = targetRpm - this.engineState.rpm;
+    const rpmChange = Math.sign(rpmDiff) * this.rpmResponseRate * deltaTime * 100;
+    
+    if (Math.abs(rpmDiff) > Math.abs(rpmChange)) {
+      this.engineState.rpm += rpmChange;
+    } else {
+      this.engineState.rpm = targetRpm;
+    }
+    
+    // Update engine temperature (simplified)
+    const targetTemp = 20 + this.engineState.actualThrottle * 80; // 20-100°C range
+    this.engineState.temperature += (targetTemp - this.engineState.temperature) * deltaTime * 0.5;
+  }
+
+  private calculateThrust(state: AircraftState, _controls: FlightControls): THREE.Vector3 {
+    // Use actual engine throttle instead of input throttle for more realistic response
+    let thrustMagnitude = this.engineState.actualThrottle * this.config.maxThrust;
+    
+    // Altitude affects engine power (simplified)
+    const altitudeFactor = Math.max(0.3, 1.0 - state.altitude / 15000);
+    thrustMagnitude *= altitudeFactor;
+    
+    // Engine efficiency curve - not linear
+    const throttleEfficiency = this.getThrottleEfficiency(this.engineState.actualThrottle);
+    thrustMagnitude *= throttleEfficiency;
     
     // Get forward direction in world space
     const forward = new THREE.Vector3(0, 0, 1);
     forward.applyEuler(state.rotation);
     
     return forward.multiplyScalar(thrustMagnitude);
+  }
+  
+  private getThrottleEfficiency(throttle: number): number {
+    // Engine efficiency curve - not perfectly linear
+    // Low throttle is less efficient, peak efficiency around 80%
+    if (throttle < 0.1) return 0.3;
+    if (throttle < 0.3) return 0.5 + throttle * 1.67; // 0.5 to 1.0
+    if (throttle < 0.8) return 0.85 + throttle * 0.1875; // 0.85 to 1.0
+    return 1.0 - (throttle - 0.8) * 0.25; // 1.0 to 0.95 (overheating)
   }
   
   private calculateLift(state: AircraftState): THREE.Vector3 {
@@ -73,18 +147,19 @@ export class FlightDynamics {
     // Lift coefficient varies with angle of attack
     const cl = this.calculateLiftCoefficient(state.angleOfAttack);
     
-    const liftMagnitude = dynamicPressure * this.config.wingArea * cl;
+    let liftMagnitude = dynamicPressure * this.config.wingArea * cl;
+    
+    // Apply stall effects with improved modeling
+    const stallEffects = this.calculateStallEffects(state);
+    liftMagnitude *= stallEffects.liftReduction;
     
     // Lift acts perpendicular to velocity, in the aircraft's up direction
     const up = new THREE.Vector3(0, 1, 0);
     up.applyEuler(state.rotation);
     
-    // Apply stall effects
-    const stallFactor = this.calculateStallFactor(state);
-    
-    // Ensure minimum lift to prevent getting stuck
-    const minLift = this.config.mass * this.gravity * 0.5; // At least half weight support at low speeds
-    const finalLift = Math.max(liftMagnitude * stallFactor, velocity > 20 ? minLift : 0);
+    // Minimum lift only at very low speeds to prevent ground sticking
+    const minLift = velocity > 5 ? this.config.mass * this.gravity * 0.2 : 0;
+    const finalLift = Math.max(liftMagnitude, minLift);
     
     return up.multiplyScalar(finalLift);
   }
@@ -95,12 +170,17 @@ export class FlightDynamics {
     
     // Base drag
     const dynamicPressure = 0.5 * this.airDensity * velocitySquared;
-    const parasticDrag = dynamicPressure * this.config.dragCoefficient * this.config.wingArea;
+    let parasticDrag = dynamicPressure * this.config.dragCoefficient * this.config.wingArea;
     
     // Induced drag (increases with angle of attack)
-    const inducedDragCoeff = Math.pow(this.calculateLiftCoefficient(state.angleOfAttack), 2) / 
-                            (Math.PI * this.config.aspectRatio * 0.8);
-    const inducedDrag = dynamicPressure * inducedDragCoeff * this.config.wingArea;
+    const cl = this.calculateLiftCoefficient(state.angleOfAttack);
+    const inducedDragCoeff = Math.pow(cl, 2) / (Math.PI * this.config.aspectRatio * 0.8);
+    let inducedDrag = dynamicPressure * inducedDragCoeff * this.config.wingArea;
+    
+    // Apply stall effects to drag
+    const stallEffects = this.calculateStallEffects(state);
+    parasticDrag *= stallEffects.dragIncrease;
+    inducedDrag *= stallEffects.dragIncrease;
     
     const totalDrag = parasticDrag + inducedDrag;
     
@@ -113,36 +193,69 @@ export class FlightDynamics {
     return new THREE.Vector3(0, 0, 0);
   }
   
-  private calculateWeight(): THREE.Vector3 {
-    // Weight always acts downward
-    return new THREE.Vector3(0, -this.config.mass * this.gravity, 0);
+  private calculateWeight(state: AircraftState): THREE.Vector3 {
+    const weightMagnitude = this.config.mass * this.gravity;
+    
+    // Weight always acts straight down in world coordinates
+    const weightVector = new THREE.Vector3(0, -weightMagnitude, 0);
+    
+    // Add gravity component that affects forward acceleration based on pitch
+    // When pitched down, gravity helps accelerate the aircraft forward
+    // When pitched up, gravity helps decelerate the aircraft
+    const pitchAngle = state.rotation.x; // Aircraft pitch angle
+    const gravityForwardComponent = Math.sin(pitchAngle) * weightMagnitude;
+    
+    // Get aircraft forward direction
+    const forward = new THREE.Vector3(0, 0, 1);
+    forward.applyEuler(state.rotation);
+    
+    // Add the forward component of gravity
+    const gravityForward = forward.multiplyScalar(gravityForwardComponent);
+    
+    return weightVector.add(gravityForward);
   }
   
   private calculateLiftCoefficient(angleOfAttack: number): number {
-    // Simplified lift curve
-    const alpha = angleOfAttack;
-    const alphaStall = 15 * Math.PI / 180; // 15 degrees
+    // More realistic lift curve with better stall characteristics
+    const alpha = angleOfAttack * 180 / Math.PI; // Convert to degrees for easier calculation
+    const alphaStall = 15; // 15 degrees critical AoA
     
-    if (Math.abs(alpha) < alphaStall) {
-      // Linear region
-      return this.config.liftCoefficient * alpha * 5.7; // 5.7 ≈ 180/π * 0.1
+    if (Math.abs(alpha) <= alphaStall) {
+      // Linear region: approximately 0.1 per degree
+      return this.config.liftCoefficient * alpha * 0.1;
     } else {
-      // Post-stall
-      return this.config.liftCoefficient * Math.sign(alpha) * 0.5;
+      // Post-stall region: sharp drop-off but not to zero
+      const excessAlpha = Math.abs(alpha) - alphaStall;
+      const stallReduction = Math.exp(-excessAlpha / 8); // Exponential decay
+      return this.config.liftCoefficient * Math.sign(alpha) * (0.3 + 0.7 * stallReduction);
     }
   }
   
-  private calculateStallFactor(state: AircraftState): number {
-    const criticalAOA = 15 * Math.PI / 180; // 15 degrees
-    const alpha = Math.abs(state.angleOfAttack);
+  private calculateStallEffects(state: AircraftState): { liftReduction: number; dragIncrease: number; pitchMoment: number } {
+    const alpha = Math.abs(state.angleOfAttack * 180 / Math.PI); // Convert to degrees
+    const criticalAOA = 15; // Critical angle of attack in degrees
+    const deepStallAOA = 25; // Deep stall begins
     
-    if (alpha < criticalAOA) {
-      return 1.0;
+    if (alpha <= criticalAOA) {
+      // No stall
+      return { liftReduction: 1.0, dragIncrease: 1.0, pitchMoment: 0 };
+    } else if (alpha <= deepStallAOA) {
+      // Progressive stall
+      const stallProgress = (alpha - criticalAOA) / (deepStallAOA - criticalAOA);
+      const liftReduction = 1.0 - stallProgress * 0.6; // Lose up to 60% lift
+      const dragIncrease = 1.0 + stallProgress * 2.0; // Drag increases significantly
+      const pitchMoment = -stallProgress * 0.5; // Nose-down pitching moment
+      
+      return { liftReduction, dragIncrease, pitchMoment };
+    } else {
+      // Deep stall - very difficult to recover
+      const deepStallProgress = Math.min(1.0, (alpha - deepStallAOA) / 20);
+      const liftReduction = 0.4 - deepStallProgress * 0.2; // 20-40% lift remaining
+      const dragIncrease = 3.0 + deepStallProgress * 2.0; // Very high drag
+      const pitchMoment = -0.8 - deepStallProgress * 0.4; // Strong nose-down moment
+      
+      return { liftReduction, dragIncrease, pitchMoment };
     }
-    
-    // Progressive stall
-    const stallProgress = (alpha - criticalAOA) / (10 * Math.PI / 180);
-    return Math.max(0.3, 1.0 - stallProgress * 0.7);
   }
   
   private calculateControlEffectiveness(state: AircraftState): number {
@@ -159,11 +272,35 @@ export class FlightDynamics {
     }
   }
   
-  // Helper methods for special maneuvers
+  // Getter methods for engine state
+  getEngineState(): EngineState {
+    return { ...this.engineState };
+  }
+  
+  getActualThrottle(): number {
+    return this.engineState.actualThrottle;
+  }
+  
+  getRPM(): number {
+    return this.engineState.rpm;
+  }
+  
+  getEngineTemperature(): number {
+    return this.engineState.temperature;
+  }
+  
+  // Helper methods for flight analysis
   isStalled(state: AircraftState): boolean {
     const criticalAOA = 15 * Math.PI / 180;
+    const stallEffects = this.calculateStallEffects(state);
     return Math.abs(state.angleOfAttack) > criticalAOA || 
-           state.airspeed < this.config.stallSpeed * 0.9;
+           state.airspeed < this.config.stallSpeed * 0.9 ||
+           stallEffects.liftReduction < 0.8;
+  }
+  
+  getStallSeverity(state: AircraftState): number {
+    const stallEffects = this.calculateStallEffects(state);
+    return 1.0 - stallEffects.liftReduction;
   }
   
   getOptimalClimbAngle(state: AircraftState): number {
