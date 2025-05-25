@@ -165,12 +165,24 @@ export class Game {
         this.cameraController.update(0); // Immediate camera update
       }
       
-      // Test auto-reset (T) - for debugging
+      // Test suites (T) - for debugging
       if (e.key === 't' || e.key === 'T') {
-        console.log('Running auto-reset tests...');
+        console.log('Running comprehensive test suite...');
+        
+        // Run auto-reset tests
         import('../tests/manual-reset-test').then(module => {
-          const tester = new module.ResetTester();
-          tester.runAllTests();
+          const resetTester = new module.ResetTester();
+          return resetTester.runAllTests();
+        }).then(() => {
+          // Run physics tests
+          return import('../tests/physics-test').then(module => {
+            const physicsTester = new module.PhysicsTestSuite();
+            return physicsTester.runAllTests();
+          });
+        }).then(() => {
+          console.log('✨ All test suites completed!');
+        }).catch(error => {
+          console.error('❌ Test suite failed:', error);
         });
       }
     });
@@ -181,6 +193,10 @@ export class Game {
     if (!debugElement) return;
     
     const aircraft = this.playerAircraft.getState();
+    const dynamics = (this.playerAircraft as any).dynamics as import('../core/FlightDynamics').FlightDynamics;
+    const engineState = dynamics.getEngineState();
+    const stallSeverity = dynamics.getStallSeverity(aircraft);
+    const isStalled = dynamics.isStalled(aircraft);
     
     debugElement.innerHTML = `
       <strong>Flight Data</strong><br>
@@ -189,15 +205,25 @@ export class Game {
       Speed: ${aircraft.airspeed.toFixed(1)} m/s<br>
       Heading: ${(aircraft.heading * 180 / Math.PI).toFixed(1)}°<br>
       AoA: ${(aircraft.angleOfAttack * 180 / Math.PI).toFixed(1)}°<br>
-      Throttle: ${(aircraft.throttle * 100).toFixed(0)}%<br>
       Health: ${aircraft.health}%<br>
       ${aircraft.health === 0 ? '<span style="color: red;">⚠️ CRASHED - Auto-reset in 2s</span><br>' : ''}
+      <br>
+      <strong>Engine Data</strong><br>
+      Input Throttle: ${(aircraft.throttle * 100).toFixed(0)}%<br>
+      Actual Throttle: ${(engineState.actualThrottle * 100).toFixed(0)}%<br>
+      RPM: ${engineState.rpm.toFixed(0)}<br>
+      Temperature: ${engineState.temperature.toFixed(0)}°C<br>
+      <br>
+      <strong>Aerodynamics</strong><br>
+      ${isStalled ? '<span style="color: orange;">⚠️ STALLED</span>' : '<span style="color: green;">✓ Flying</span>'}<br>
+      Stall Severity: ${(stallSeverity * 100).toFixed(0)}%<br>
       <br>
       <strong>Controls</strong><br>
       WASD/Arrows: Pitch & Roll<br>
       Q/E: Yaw<br>
       Shift/Ctrl: Throttle<br>
       R: Reset Position<br>
+      T: Run Tests<br>
       1-5: Camera Views<br>
       F3: Toggle Debug
     `;
