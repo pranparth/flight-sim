@@ -109,6 +109,77 @@
         color: #ccc;
         margin-top: 2px;
       }
+      
+      /* Combat HUD */
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        pointer-events: none;
+      }
+      
+      .crosshair-line {
+        position: absolute;
+        background: rgba(255, 255, 0, 0.8);
+      }
+      
+      .crosshair-horizontal {
+        width: 40px;
+        height: 2px;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+      }
+      
+      .crosshair-vertical {
+        width: 2px;
+        height: 40px;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+      }
+      
+      .crosshair-dot {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: rgba(255, 255, 0, 1);
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+      
+      #ammo-counter {
+        position: absolute;
+        bottom: 220px;
+        left: 30px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 15px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        border: 2px solid #666;
+        border-radius: 5px;
+      }
+      
+      .ammo-label {
+        color: #aaa;
+        font-size: 12px;
+        margin-bottom: 5px;
+      }
+      
+      .ammo-count {
+        color: #4ae24a;
+        font-weight: bold;
+      }
+      
+      .ammo-depleted {
+        color: #e24a4a;
+      }
     </style>
   </head>
   <body>
@@ -130,6 +201,18 @@
         <div class="instrument-label">Altitude</div>
         <div class="instrument-value" id="altitude-value">0</div>
         <div class="instrument-unit">m</div>
+      </div>
+      
+      <!-- Combat HUD -->
+      <div id="crosshair">
+        <div class="crosshair-line crosshair-horizontal"></div>
+        <div class="crosshair-line crosshair-vertical"></div>
+        <div class="crosshair-dot"></div>
+      </div>
+      
+      <div id="ammo-counter">
+        <div class="ammo-label">AMMUNITION</div>
+        <div class="ammo-count" id="ammo-value">0 / 0</div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

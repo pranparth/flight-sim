@@ -5,6 +5,8 @@ import { InputManager } from '@systems/InputManager';
 import { SceneManager } from '@systems/SceneManager';
 import { Aircraft } from '@entities/Aircraft';
 import { CameraController } from '@systems/CameraController';
+import { WeaponManager, Weapon, WeaponMount } from '@systems/WeaponSystem';
+import { DamageManager } from '@systems/DamageSystem';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 export class Game {
@@ -14,9 +16,12 @@ export class Game {
   private inputManager!: InputManager;
   private sceneManager!: SceneManager;
   private cameraController!: CameraController;
+  private weaponManager!: WeaponManager;
+  private damageManager!: DamageManager;
   private stats?: Stats;
   
   private playerAircraft!: Aircraft;
+  private enemyAircraft: Aircraft[] = [];
   
   private clock = new THREE.Clock();
   private isRunning = false;
@@ -39,6 +44,8 @@ export class Game {
     this.sceneManager = new SceneManager();
     this.physicsEngine = new PhysicsEngine();
     this.inputManager = new InputManager();
+    this.weaponManager = new WeaponManager(this.sceneManager.getScene());
+    this.damageManager = new DamageManager();
     
     // Setup the scene
     await this.sceneManager.init();
@@ -47,10 +54,20 @@ export class Game {
     this.playerAircraft = new Aircraft({
       position: new THREE.Vector3(0, 100, 0),
       rotation: new THREE.Euler(0, 0, 0),
-      type: 'spitfire'
+      type: 'spitfire',
+      id: 'player'
     });
     
     this.sceneManager.addAircraft(this.playerAircraft);
+    
+    // Setup player weapons
+    this.setupPlayerWeapons();
+    
+    // Create damage model for player
+    this.damageManager.createDamageModel(this.playerAircraft.getId());
+    
+    // Create test enemy aircraft
+    this.createTestEnemy();
     
     // Setup camera
     this.cameraController = new CameraController(
@@ -111,6 +128,57 @@ export class Game {
     this.playerAircraft.updateControls(controls);
     this.playerAircraft.update(cappedDelta);
     
+    // Handle weapon firing
+    if (controls.fire) {
+      this.weaponManager.startFiring(this.playerAircraft.getId());
+    } else {
+      this.weaponManager.stopFiring(this.playerAircraft.getId());
+    }
+    
+    // Fire weapons
+    this.weaponManager.fireWeapons(
+      this.playerAircraft.getId(),
+      this.playerAircraft.getMesh().matrixWorld,
+      elapsedTime * 1000
+    );
+    
+    // Update all enemy aircraft
+    this.enemyAircraft.forEach(enemy => {
+      enemy.update(cappedDelta);
+    });
+    
+    // Get all targetable objects (aircraft meshes)
+    const targetables: THREE.Object3D[] = [
+      this.playerAircraft.getMesh(),
+      ...this.enemyAircraft.map(e => e.getMesh())
+    ];
+    
+    // Update weapons and check for hits
+    const hits = this.weaponManager.update(cappedDelta, targetables);
+    
+    // Process hits
+    hits.forEach(hit => {
+      const targetId = hit.target.userData.aircraftId;
+      const targetAircraft = targetId === 'player' ? 
+        this.playerAircraft : 
+        this.enemyAircraft.find(e => e.getId() === targetId);
+      
+      if (targetAircraft) {
+        const damageResult = this.damageManager.applyDamage(
+          targetId,
+          hit.damage,
+          hit.hitPoint,
+          targetAircraft
+        );
+        
+        // Handle aircraft destruction
+        if (damageResult && damageResult.isDestroyed && targetAircraft.getIsDestroyed()) {
+          console.log(`Aircraft ${targetId} destroyed!`);
+          // TODO: Add destruction effects
+        }
+      }
+    });
+    
     // Update camera
     this.cameraController.update(cappedDelta);
     
@@ -124,6 +192,9 @@ export class Game {
     
     // Update flight instruments (always visible)
     this.updateFlightInstruments();
+    
+    // Update combat HUD
+    this.updateCombatHUD();
   }
   
   private render(): void {
@@ -229,6 +300,64 @@ export class Game {
     `;
   }
   
+  private setupPlayerWeapons(): void {
+    // Spitfire weapon configuration - 8x .303 machine guns
+    const weapons: Weapon[] = [];
+    
+    // Wing-mounted guns (4 per wing)
+    const wingPositions = [
+      // Left wing
+      new THREE.Vector3(-4.5, -0.2, 0.5),
+      new THREE.Vector3(-3.5, -0.2, 0.3),
+      new THREE.Vector3(-2.5, -0.2, 0.1),
+      new THREE.Vector3(-1.5, -0.2, -0.1),
+      // Right wing
+      new THREE.Vector3(4.5, -0.2, 0.5),
+      new THREE.Vector3(3.5, -0.2, 0.3),
+      new THREE.Vector3(2.5, -0.2, 0.1),
+      new THREE.Vector3(1.5, -0.2, -0.1),
+    ];
+    
+    wingPositions.forEach(position => {
+      const mount: WeaponMount = {
+        position: position,
+        direction: new THREE.Vector3(0, 0, 1) // Forward
+      };
+      weapons.push(new Weapon('machineGun_303', mount));
+    });
+    
+    this.weaponManager.addWeaponGroup(this.playerAircraft.getId(), weapons);
+  }
+  
+  private createTestEnemy(): void {
+    // Create a stationary enemy for target practice
+    const enemy = new Aircraft({
+      position: new THREE.Vector3(0, 150, 200), // 200m in front of player start
+      rotation: new THREE.Euler(0, Math.PI, 0), // Facing player
+      type: 'bf109',
+      id: 'enemy_test'
+    });
+    
+    this.enemyAircraft.push(enemy);
+    this.sceneManager.addAircraft(enemy);
+    
+    // Create damage model for enemy
+    this.damageManager.createDamageModel(enemy.getId());
+    
+    // Simple AI - just hover in place for now
+    enemy.updateControls({
+      pitch: 0,
+      roll: 0,
+      yaw: 0,
+      throttle: 0.5,
+      brake: false,
+      boost: false,
+      fire: false,
+      lookBack: false,
+      pause: false
+    });
+  }
+  
   private updateFlightInstruments(): void {
     const aircraft = this.playerAircraft.getState();
     
@@ -242,6 +371,29 @@ export class Game {
     const altitudeElement = document.getElementById('altitude-value');
     if (altitudeElement) {
       altitudeElement.textContent = aircraft.altitude.toFixed(0);
+    }
+  }
+  
+  private updateCombatHUD(): void {
+    // Update ammo counter
+    const weaponStatus = this.weaponManager.getWeaponsStatus(this.playerAircraft.getId());
+    const ammoElement = document.getElementById('ammo-value');
+    
+    if (ammoElement && weaponStatus.length > 0) {
+      // Sum up all weapon ammo
+      const totalAmmo = weaponStatus.reduce((sum, weapon) => sum + weapon.ammo, 0);
+      const totalMaxAmmo = weaponStatus.reduce((sum, weapon) => sum + weapon.maxAmmo, 0);
+      
+      ammoElement.textContent = `${totalAmmo} / ${totalMaxAmmo}`;
+      
+      // Change color based on ammo level
+      if (totalAmmo === 0) {
+        ammoElement.className = 'ammo-count ammo-depleted';
+      } else if (totalAmmo / totalMaxAmmo < 0.25) {
+        ammoElement.style.color = '#e2e24a'; // Yellow warning
+      } else {
+        ammoElement.className = 'ammo-count';
+      }
     }
   }
   

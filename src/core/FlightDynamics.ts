@@ -298,6 +298,11 @@ export class FlightDynamics {
            stallEffects.liftReduction < 0.8;
   }
   
+  // Damage system support
+  setMaxThrust(thrust: number): void {
+    this.config.maxThrust = Math.max(0, thrust);
+  }
+  
   getStallSeverity(state: AircraftState): number {
     const stallEffects = this.calculateStallEffects(state);
     return 1.0 - stallEffects.liftReduction;

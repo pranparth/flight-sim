@@ -29,9 +29,11 @@ export interface AircraftOptions {
   position?: THREE.Vector3;
   rotation?: THREE.Euler;
   type: 'spitfire' | 'bf109' | 'p51mustang' | 'zero';
+  id?: string;
 }
 
 export class Aircraft {
+  private id: string;
   private mesh: THREE.Group;
   private config: AircraftConfig;
   private dynamics: FlightDynamics;
@@ -50,7 +52,19 @@ export class Aircraft {
   // Reset timer management
   private resetTimer: number | null = null;
   
+  // Damage system properties
+  private engineDamage: number = 0; // 0-1, 0 = no damage, 1 = destroyed
+  private controlDamage: { roll: number; pitch: number; yaw: number } = { roll: 0, pitch: 0, yaw: 0 };
+  private fuelLeakRate: number = 1.0; // Multiplier for fuel consumption
+  private isOnFire: boolean = false;
+  private isSpinning: boolean = false;
+  private spinDirection: 'left' | 'right' | null = null;
+  private isDestroyed: boolean = false;
+  
   constructor(options: AircraftOptions) {
+    // Set aircraft ID
+    this.id = options.id || `aircraft_${Date.now()}`;
+    
     // Get aircraft configuration
     this.config = getAircraftConfig(options.type);
     
@@ -75,6 +89,9 @@ export class Aircraft {
     this.mesh = createAircraftMesh(options.type);
     this.mesh.position.copy(this.state.position);
     this.mesh.rotation.copy(this.state.rotation);
+    
+    // Store aircraft ID in mesh userData for hit detection
+    this.mesh.userData.aircraftId = this.id;
     
     // Find control surfaces and propeller
     this.findComponents();
@@ -150,10 +167,17 @@ export class Aircraft {
     // Update position
     this.state.position.add(this.state.velocity.clone().multiplyScalar(deltaTime));
     
-    // Angular acceleration from control inputs
-    const pitchRate = this.controls.pitch * this.config.pitchRate * forces.controlEffectiveness;
-    const rollRate = this.controls.roll * this.config.rollRate * forces.controlEffectiveness;
-    const yawRate = this.controls.yaw * this.config.yawRate * forces.controlEffectiveness;
+    // Angular acceleration from control inputs (affected by damage)
+    const pitchRate = this.controls.pitch * this.config.pitchRate * forces.controlEffectiveness * (1 - Math.abs(this.controlDamage.pitch));
+    const rollRate = this.controls.roll * this.config.rollRate * forces.controlEffectiveness * (1 - Math.abs(this.controlDamage.roll));
+    const yawRate = this.controls.yaw * this.config.yawRate * forces.controlEffectiveness * (1 - Math.abs(this.controlDamage.yaw));
+    
+    // Add uncontrollable spin if wing is destroyed
+    if (this.isSpinning && this.spinDirection) {
+      const spinForce = this.spinDirection === 'left' ? -5 : 5;
+      this.state.angularVelocity.z += spinForce * deltaTime;
+      this.state.angularVelocity.x -= 2 * deltaTime; // Nose down
+    }
     
     // Update angular velocity
     this.state.angularVelocity.x += pitchRate * deltaTime;
@@ -294,8 +318,8 @@ export class Aircraft {
   }
   
   private updateFuel(deltaTime: number): void {
-    // Fuel consumption based on throttle
-    const fuelConsumption = this.state.throttle * this.config.fuelConsumptionRate * deltaTime;
+    // Fuel consumption based on throttle (affected by damage/leaks)
+    const fuelConsumption = this.state.throttle * this.config.fuelConsumptionRate * deltaTime * this.fuelLeakRate;
     this.state.fuel = Math.max(0, this.state.fuel - fuelConsumption);
     
     // If out of fuel, reduce throttle
@@ -308,6 +332,10 @@ export class Aircraft {
   // Public methods
   getMesh(): THREE.Group {
     return this.mesh;
+  }
+  
+  getId(): string {
+    return this.id;
   }
   
   getPosition(): THREE.Vector3 {
@@ -395,5 +423,54 @@ export class Aircraft {
   
   _testCheckCollisions(): void {
     this.checkGroundCollision();
+  }
+  
+  // Damage system methods
+  setEngineDamage(damage: number): void {
+    this.engineDamage = Math.max(0, Math.min(1, damage));
+    // Update max thrust based on damage
+    const damageMultiplier = 1 - this.engineDamage;
+    this.dynamics.setMaxThrust(this.config.maxThrust * damageMultiplier);
+  }
+  
+  setControlDamage(control: 'roll' | 'pitch' | 'yaw' | 'all', damage: number): void {
+    if (control === 'all') {
+      this.controlDamage.roll = damage;
+      this.controlDamage.pitch = damage;
+      this.controlDamage.yaw = damage;
+    } else {
+      this.controlDamage[control] = damage;
+    }
+  }
+  
+  setFuelLeakRate(rate: number): void {
+    this.fuelLeakRate = Math.max(1, rate);
+  }
+  
+  setOnFire(onFire: boolean): void {
+    this.isOnFire = onFire;
+    // Fire causes continuous damage over time
+    if (onFire) {
+      this.state.health -= 5; // Immediate damage
+    }
+  }
+  
+  setUncontrollableSpin(direction: 'left' | 'right'): void {
+    this.isSpinning = true;
+    this.spinDirection = direction;
+  }
+  
+  setDestroyed(): void {
+    this.isDestroyed = true;
+    this.state.health = 0;
+    // Aircraft is destroyed - will trigger destruction effects
+  }
+  
+  getIsDestroyed(): boolean {
+    return this.isDestroyed;
+  }
+  
+  getIsOnFire(): boolean {
+    return this.isOnFire;
   }
 }
