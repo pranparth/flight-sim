@@ -19,6 +19,7 @@ export class CameraController {
   private lookOffset = new THREE.Vector3(0, 2, 10);
   private currentOffset = new THREE.Vector3();
   private currentLookAt = new THREE.Vector3();
+  private forceAlignment = false;
   
   // Zoom control
   private zoomLevel = 1.0;
@@ -160,13 +161,21 @@ export class CameraController {
       const resetProgress = Math.min(this.resetTimer / this.resetDuration, 1);
       const easedProgress = this.easeOutCubic(resetProgress);
       
-      // Faster lerp during reset
-      this.positionLerp = THREE.MathUtils.lerp(0.1, 0.3, easedProgress);
-      this.rotationLerp = THREE.MathUtils.lerp(0.1, 0.4, easedProgress);
+      // Much faster lerp during reset to ensure proper alignment
+      this.positionLerp = THREE.MathUtils.lerp(0.3, 0.8, easedProgress);
+      this.rotationLerp = THREE.MathUtils.lerp(0.4, 0.9, easedProgress);
       
       if (resetProgress >= 1) {
         this.isResetting = false;
         this.applyMode(this.mode);
+        
+        // Final alignment to ensure camera is properly positioned
+        const targetPosition = this.target.getPosition();
+        const targetRotation = this.target.getRotation();
+        const finalPosition = this.calculateDesiredPosition(targetPosition, targetRotation);
+        const finalLookAt = this.calculateDesiredLookAt(targetPosition, targetRotation);
+        this.currentOffset.lerp(finalPosition, 0.5);
+        this.currentLookAt.lerp(finalLookAt, 0.5);
       }
     }
     
@@ -174,9 +183,15 @@ export class CameraController {
     const desiredPosition = this.calculateDesiredPosition(targetPosition, targetRotation);
     const desiredLookAt = this.calculateDesiredLookAt(targetPosition, targetRotation);
     
-    // Smooth camera movement
-    this.currentOffset.lerp(desiredPosition, this.positionLerp);
-    this.currentLookAt.lerp(desiredLookAt, this.rotationLerp);
+    // Smooth camera movement or force alignment if needed
+    if (this.forceAlignment) {
+      this.currentOffset.copy(desiredPosition);
+      this.currentLookAt.copy(desiredLookAt);
+      this.forceAlignment = false;
+    } else {
+      this.currentOffset.lerp(desiredPosition, this.positionLerp);
+      this.currentLookAt.lerp(desiredLookAt, this.rotationLerp);
+    }
     
     // Apply camera shake if any
     if (this.shakeMagnitude > 0.01) {
@@ -279,8 +294,12 @@ export class CameraController {
     
     // Reset zoom to default
     this.targetZoomLevel = 1.0;
+    this.zoomLevel = 1.0;
     
-    // Start reset animation
+    // Force immediate alignment on next update
+    this.forceAlignment = true;
+    
+    // Start reset animation for smooth transition
     this.isResetting = true;
     this.resetTimer = 0;
   }
