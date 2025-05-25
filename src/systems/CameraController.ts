@@ -20,6 +20,19 @@ export class CameraController {
   private currentOffset = new THREE.Vector3();
   private currentLookAt = new THREE.Vector3();
   
+  // Zoom control
+  private zoomLevel = 1.0;
+  private targetZoomLevel = 1.0;
+  private minZoom = 0.5;
+  private maxZoom = 2.0;
+  private zoomSpeed = 0.1;
+  private zoomLerp = 0.15;
+  
+  // Reset animation
+  private isResetting = false;
+  private resetDuration = 0.5;
+  private resetTimer = 0;
+  
   // Smoothing
   private positionLerp = 0.1;
   private rotationLerp = 0.1;
@@ -72,11 +85,12 @@ export class CameraController {
     // Initialize camera position
     this.applyMode(this.mode);
     
-    // Set up camera switching
-    window.addEventListener('keydown', (e) => this.handleCameraSwitch(e));
+    // Set up camera switching and controls
+    window.addEventListener('keydown', (e) => this.handleKeyInput(e));
+    window.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
   }
   
-  private handleCameraSwitch(event: KeyboardEvent): void {
+  private handleKeyInput(event: KeyboardEvent): void {
     switch (event.key) {
       case '1':
         this.setMode(CameraMode.THIRD_PERSON);
@@ -93,7 +107,19 @@ export class CameraController {
       case '5':
         this.setMode(CameraMode.FREE);
         break;
+      case 'c':
+      case 'C':
+        this.resetCamera();
+        break;
     }
+  }
+  
+  private handleWheel(event: WheelEvent): void {
+    event.preventDefault();
+    
+    // Adjust zoom based on wheel direction
+    const zoomDelta = event.deltaY > 0 ? 0.1 : -0.1;
+    this.targetZoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, this.targetZoomLevel + zoomDelta));
   }
   
   setMode(mode: CameraMode): void {
@@ -113,9 +139,28 @@ export class CameraController {
     this.rotationLerp = config.rotationLerp;
   }
   
-  update(_deltaTime: number): void {
+  update(deltaTime: number): void {
     const targetPosition = this.target.getPosition();
     const targetRotation = this.target.getRotation();
+    
+    // Update zoom level
+    this.zoomLevel = THREE.MathUtils.lerp(this.zoomLevel, this.targetZoomLevel, this.zoomLerp);
+    
+    // Handle reset animation
+    if (this.isResetting) {
+      this.resetTimer += deltaTime;
+      const resetProgress = Math.min(this.resetTimer / this.resetDuration, 1);
+      const easedProgress = this.easeOutCubic(resetProgress);
+      
+      // Faster lerp during reset
+      this.positionLerp = THREE.MathUtils.lerp(0.1, 0.3, easedProgress);
+      this.rotationLerp = THREE.MathUtils.lerp(0.1, 0.4, easedProgress);
+      
+      if (resetProgress >= 1) {
+        this.isResetting = false;
+        this.applyMode(this.mode);
+      }
+    }
     
     // Calculate desired camera position based on mode
     const desiredPosition = this.calculateDesiredPosition(targetPosition, targetRotation);
@@ -161,7 +206,8 @@ export class CameraController {
     
     // Transform offset by aircraft rotation
     const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(targetRot);
-    const rotatedOffset = this.offset.clone().applyMatrix4(rotationMatrix);
+    const scaledOffset = this.offset.clone().multiplyScalar(this.zoomLevel);
+    const rotatedOffset = scaledOffset.applyMatrix4(rotationMatrix);
     
     // Add to target position
     position.copy(targetPos).add(rotatedOffset);
@@ -214,5 +260,32 @@ export class CameraController {
     
     // TODO: Implement cinematic sequences
     // This would involve creating predefined camera paths and animations
+  }
+  
+  // New methods for zoom and reset functionality
+  resetCamera(): void {
+    // Switch to chase mode if not already
+    if (this.mode !== CameraMode.CHASE) {
+      this.setMode(CameraMode.CHASE);
+    }
+    
+    // Reset zoom to default
+    this.targetZoomLevel = 1.0;
+    
+    // Start reset animation
+    this.isResetting = true;
+    this.resetTimer = 0;
+  }
+  
+  getZoomLevel(): number {
+    return this.zoomLevel;
+  }
+  
+  setZoomLevel(level: number): void {
+    this.targetZoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, level));
+  }
+  
+  private easeOutCubic(t: number): number {
+    return 1 - Math.pow(1 - t, 3);
   }
 }
