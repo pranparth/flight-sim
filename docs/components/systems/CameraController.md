@@ -87,6 +87,20 @@ Number keys instantly switch camera modes:
 - **4**: Cinematic
 - **5**: Free
 
+### 5. Zoom Control
+Dynamic camera distance adjustment:
+- **Mouse Wheel**: Scroll to zoom in/out
+- **+/=**: Zoom in (camera moves closer)
+- **-/_**: Zoom out (camera moves further)
+- **Range**: 0.5x to 2x default distance
+- **Persistence**: Zoom level maintained across mode switches
+
+### 6. Camera Reset
+Quick return to default view:
+- **C**: Reset to chase mode behind aircraft
+- **Zoom Reset**: Returns to 1.0x zoom level
+- **Smooth Animation**: Eased transition
+
 ## Methods
 
 ### Core Methods
@@ -134,13 +148,41 @@ Returns the Three.js camera instance.
 #### `getMode(): CameraMode`
 Returns current camera mode.
 
+#### `resetCamera(): void`
+Resets camera to default chase position:
+- Switches to CHASE mode
+- Sets zoom to 1.0
+- Starts smooth transition animation
+
+#### `getZoomLevel(): number`
+Returns current zoom level (0.5 to 2.0).
+
+#### `setZoomLevel(level: number): void`
+Sets target zoom level with clamping.
+
+#### `zoomIn(): void`
+Decreases zoom level (camera moves closer).
+
+#### `zoomOut(): void`
+Increases zoom level (camera moves further).
+
 ## Implementation Details
 
 ### Coordinate Transformation
 Camera offsets are defined in aircraft-local space and transformed to world space:
 ```typescript
 rotationMatrix = Matrix4.makeRotationFromEuler(targetRot)
-worldOffset = localOffset.applyMatrix4(rotationMatrix)
+scaledOffset = localOffset.multiplyScalar(zoomLevel)
+worldOffset = scaledOffset.applyMatrix4(rotationMatrix)
+```
+
+### Zoom Implementation
+Zoom modifies camera distance by scaling offset:
+```typescript
+// Smooth zoom transitions
+zoomLevel = lerp(zoomLevel, targetZoomLevel, zoomLerp)
+// Apply to camera offset
+scaledOffset = offset.multiplyScalar(zoomLevel)
 ```
 
 ### Cockpit Mode Special Handling
@@ -177,6 +219,19 @@ function animate(deltaTime: number) {
 
 // Switch to cinematic for replay
 cameraController.setMode(CameraMode.CINEMATIC);
+
+// Zoom controls
+window.addEventListener('wheel', (e) => {
+  const delta = e.deltaY > 0 ? 0.1 : -0.1;
+  cameraController.setZoomLevel(
+    cameraController.getZoomLevel() + delta
+  );
+});
+
+// Reset camera
+if (needsReset) {
+  cameraController.resetCamera();
+}
 ```
 
 ## Camera Mode Properties

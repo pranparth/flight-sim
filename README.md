@@ -35,7 +35,6 @@ A browser-based World War 2 combat flight simulator featuring cartoon-style grap
 - **Ctrl**: Decrease throttle
 - **Space**: Fire weapons (Phase 2)
 - **Tab**: Boost (Phase 2)
-- **C**: Look back
 - **B**: Air brake
 
 ### Camera Controls
@@ -44,6 +43,10 @@ A browser-based World War 2 combat flight simulator featuring cartoon-style grap
 - **3**: Chase camera
 - **4**: Cinematic camera
 - **5**: Free camera
+- **Mouse Wheel**: Zoom in/out
+- **+/=**: Zoom in (camera closer)
+- **-/_**: Zoom out (camera further)
+- **C**: Reset camera to default view
 
 ### Debug
 - **F3**: Toggle debug information

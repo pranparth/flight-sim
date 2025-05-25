@@ -62,7 +62,17 @@ This is a browser-based WW2 combat flight simulator with cartoon-style graphics,
   - Control effectiveness vs airspeed
   - Simplified for arcade feel
 
-#### 4. Rendering Pipeline
+#### 4. Camera System
+- **Multiple Modes**: Third Person, Cockpit, Chase, Cinematic, Free
+- **Smooth Transitions**: Position and rotation lerping
+- **Zoom Control**: 
+  - Mouse wheel support
+  - Keyboard bindings (+/- keys)
+  - Range: 0.5x to 2x distance
+- **Quick Reset**: 'C' key returns to default chase view
+- **Mode Persistence**: Zoom level maintained across mode switches
+
+#### 5. Rendering Pipeline
 ```
 Scene Setup → Shadow Mapping → Main Render → Post-Processing
                                               └─> FXAA Anti-aliasing
@@ -225,6 +235,10 @@ Displays:
 - **R**: Reset aircraft position
 - **T**: Run auto-reset tests
 - **1-5**: Camera mode switching
+- **+/=**: Zoom in (camera closer)
+- **-/_**: Zoom out (camera further)
+- **C**: Reset camera to default chase view
+- **Mouse Wheel**: Zoom in/out
 - **F3**: Toggle debug overlay
 
 ## Development Workflow
