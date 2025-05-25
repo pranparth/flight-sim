@@ -83,9 +83,9 @@ export function createOutlineMaterial(color: number | string = 0x000000, thickne
 // Faction color schemes
 export const FACTION_COLORS = {
   allies: {
-    primary: 0x1a3d5c,
-    secondary: 0x4a7bb0,
-    accent: 0xffd700,
+    primary: 0x2d5016,     // Dark green for fuselage
+    secondary: 0x3a6b1f,   // Medium green for wings
+    accent: 0xffd700,      // Yellow for markings
     cockpit: 0x333333,
   },
   axis: {
