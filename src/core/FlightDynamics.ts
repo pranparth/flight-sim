@@ -28,7 +28,7 @@ export class FlightDynamics {
   private engineState: EngineState = {
     actualThrottle: 0,
     targetThrottle: 0,
-    rpm: 0,
+    rpm: 800,  // Start at idle RPM
     temperature: 20
   };
   
@@ -54,7 +54,7 @@ export class FlightDynamics {
     const thrust = this.calculateThrust(state, controls);
     const lift = this.calculateLift(state);
     const drag = this.calculateDrag(state);
-    const weight = this.calculateWeight(state); // Now includes pitch effects
+    const weight = this.calculateWeight(state);
     
     // Calculate control effectiveness based on airspeed
     const controlEffectiveness = this.calculateControlEffectiveness(state);
@@ -96,13 +96,10 @@ export class FlightDynamics {
     // Update RPM based on actual throttle
     const targetRpm = this.idleRpm + (this.maxRpm - this.idleRpm) * this.engineState.actualThrottle;
     const rpmDiff = targetRpm - this.engineState.rpm;
-    const rpmChange = Math.sign(rpmDiff) * this.rpmResponseRate * deltaTime * 100;
+    const maxRpmChangePerSecond = (this.maxRpm - this.idleRpm) * this.rpmResponseRate;
+    const rpmChange = Math.sign(rpmDiff) * Math.min(Math.abs(rpmDiff), maxRpmChangePerSecond * deltaTime);
     
-    if (Math.abs(rpmDiff) > Math.abs(rpmChange)) {
-      this.engineState.rpm += rpmChange;
-    } else {
-      this.engineState.rpm = targetRpm;
-    }
+    this.engineState.rpm += rpmChange;
     
     // Update engine temperature (simplified)
     const targetTemp = 20 + this.engineState.actualThrottle * 80; // 20-100°C range
@@ -197,22 +194,25 @@ export class FlightDynamics {
     const weightMagnitude = this.config.mass * this.gravity;
     
     // Weight always acts straight down in world coordinates
-    const weightVector = new THREE.Vector3(0, -weightMagnitude, 0);
+    const weight = new THREE.Vector3(0, -weightMagnitude, 0);
     
-    // Add gravity component that affects forward acceleration based on pitch
-    // When pitched down, gravity helps accelerate the aircraft forward
-    // When pitched up, gravity helps decelerate the aircraft
-    const pitchAngle = state.rotation.x; // Aircraft pitch angle
-    const gravityForwardComponent = Math.sin(pitchAngle) * weightMagnitude;
+    // When aircraft is pitched, part of the weight acts along the flight path
+    // This simulates the effect of gravity pulling the aircraft forward when diving
+    // or backward when climbing
+    if (state.velocity.length() > 5) {
+      const pitchAngle = state.rotation.x;
+      // For a dive (negative pitch), sin is negative, so we get positive forward force
+      const forwardComponent = -Math.sin(pitchAngle) * weightMagnitude;
+      
+      // Get the aircraft's forward direction in world space
+      const forward = new THREE.Vector3(0, 0, 1);
+      forward.applyEuler(state.rotation);
+      
+      // Add the forward/backward component to the weight
+      weight.add(forward.multiplyScalar(forwardComponent));
+    }
     
-    // Get aircraft forward direction
-    const forward = new THREE.Vector3(0, 0, 1);
-    forward.applyEuler(state.rotation);
-    
-    // Add the forward component of gravity
-    const gravityForward = forward.multiplyScalar(gravityForwardComponent);
-    
-    return weightVector.add(gravityForward);
+    return weight;
   }
   
   private calculateLiftCoefficient(angleOfAttack: number): number {
