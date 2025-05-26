@@ -153,6 +153,7 @@
           <ul class="test-list">
             <li>✈️ Auto-Reset Tests (4 tests)</li>
             <li>⚙️ Physics Engine Tests (6 tests)</li>
+            <li>📷 Camera Lateral Movement Tests (4 tests)</li>
           </ul>
         </div>
         
@@ -170,7 +171,7 @@
         <div class="test-category">
           <h3>📊 Test Statistics</h3>
           <div id="stats">
-            <p>Total Tests: <span id="total-tests">35</span></p>
+            <p>Total Tests: <span id="total-tests">39</span></p>
             <p>Last Run: <span id="last-run">Never</span></p>
             <p>Success Rate: <span id="success-rate">N/A</span></p>
           </div>
@@ -211,6 +212,7 @@
       // Import all test suites
       import { ResetTester } from '/src/tests/manual-reset-test.ts';
       import { PhysicsTestSuite } from '/src/tests/physics-test.ts';
+      import { runCameraLateralMovementTests } from '/src/tests/camera-lateral-movement.test.ts';
       import { projectileTests } from '/src/tests/projectile.test.ts';
       import { weaponTests } from '/src/tests/weapon.test.ts';
       import { damageTests } from '/src/tests/damage.test.ts';
@@ -327,6 +329,9 @@
           const physicsTester = new PhysicsTestSuite();
           await physicsTester.runAllTests();
           
+          addToOutput('\n📷 Camera Lateral Movement Tests:', 'info');
+          await runCameraLateralMovementTests();
+          
           // Combat tests
           addToOutput('\n=== COMBAT SYSTEM TESTS ===\n', 'info');
           
@@ -356,11 +361,16 @@
         try {
           addToOutput('=== CORE SYSTEM TESTS ===\n', 'info');
           
+          addToOutput('🎮 Auto-Reset Tests:', 'info');
           const resetTester = new ResetTester();
           await resetTester.runAllTests();
           
+          addToOutput('\n⚙️ Physics Engine Tests:', 'info');
           const physicsTester = new PhysicsTestSuite();
           await physicsTester.runAllTests();
+          
+          addToOutput('\n📷 Camera Lateral Movement Tests:', 'info');
+          await runCameraLateralMovementTests();
           
           addToOutput('\n✨ Core tests completed!', 'success');
         } catch (error) {

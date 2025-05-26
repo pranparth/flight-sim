@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Camera Lateral Movement Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background: #1a1a1a;
+        color: #fff;
+      }
+      
+      #container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+      
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        font-size: 12px;
+      }
+      
+      .controls {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 5px;
+      }
+      
+      button {
+        margin: 5px;
+        padding: 10px 20px;
+        background: #4a90e2;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      
+      button:hover {
+        background: #357abd;
+      }
+      
+      #console {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 300px;
+        height: 200px;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 10px;
+        border-radius: 5px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container"></div>
+    
+    <div id="info">
+      <h3>Camera Lateral Movement Test</h3>
+      <p>
+        <strong>Controls:</strong><br>
+        W/S - Pitch<br>
+        A/D - Roll<br>
+        Q/E - Yaw<br>
+        ↑/↓ - Throttle<br>
+        C - Reset Camera<br>
+        1-5 - Camera Modes<br>
+        +/- - Zoom
+      </p>
+    </div>
+    
+    <div class="controls">
+      <button id="runTests">Run Camera Tests</button>
+      <button id="clearConsole">Clear Console</button>
+    </div>
+    
+    <div id="console"></div>
+    
+    <script type="module">
+      import { runCameraLateralMovementTests } from './src/tests/camera-lateral-movement.test.ts';
+      import { debugCameraReset } from './src/tests/camera-debug-test.ts';
+      
+      const consoleDiv = document.getElementById('console');
+      const runTestsBtn = document.getElementById('runTests');
+      const clearBtn = document.getElementById('clearConsole');
+      
+      // Override console.log to display in our console
+      const originalLog = console.log;
+      const originalError = console.error;
+      const originalAssert = console.assert;
+      
+      function addToConsole(message, type = 'log') {
+        const span = document.createElement('div');
+        span.style.color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#fff';
+        span.textContent = message;
+        consoleDiv.appendChild(span);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      }
+      
+      console.log = (...args) => {
+        originalLog(...args);
+        const message = args.join(' ');
+        const type = message.includes('✓') ? 'success' : 'log';
+        addToConsole(message, type);
+      };
+      
+      console.error = (...args) => {
+        originalError(...args);
+        addToConsole('❌ ' + args.join(' '), 'error');
+      };
+      
+      console.assert = (condition, ...args) => {
+        originalAssert(condition, ...args);
+        if (!condition) {
+          addToConsole('❌ Assertion failed: ' + args.join(' '), 'error');
+          throw new Error('Assertion failed: ' + args.join(' '));
+        }
+      };
+      
+      runTestsBtn.addEventListener('click', async () => {
+        runTestsBtn.disabled = true;
+        runTestsBtn.textContent = 'Running...';
+        
+        try {
+          await runCameraLateralMovementTests();
+          addToConsole('\n✅ All tests completed!', 'success');
+        } catch (error) {
+          addToConsole('\n❌ Tests failed: ' + error.message, 'error');
+        }
+        
+        runTestsBtn.disabled = false;
+        runTestsBtn.textContent = 'Run Camera Tests';
+      });
+      
+      clearBtn.addEventListener('click', () => {
+        consoleDiv.innerHTML = '';
+      });
+      
+      // Start the game
+      import('./src/main.ts');
+    </script>
+  </body>
+</html>

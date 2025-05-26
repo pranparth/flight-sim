@@ -152,7 +152,9 @@ Returns current camera mode.
 Resets camera to default chase position:
 - Switches to CHASE mode
 - Sets zoom to 1.0
+- Forces immediate alignment to correct position behind aircraft
 - Starts smooth transition animation
+- Properly handles lateral movement offset correction
 
 #### `getZoomLevel(): number`
 Returns current zoom level (0.5 to 2.0).
@@ -165,6 +167,30 @@ Decreases zoom level (camera moves closer).
 
 #### `zoomOut(): void`
 Increases zoom level (camera moves further).
+
+## Bug Fixes & Known Issues
+
+### Camera Reset After Lateral Movement (Fixed)
+**Issue**: When performing yaw movements or banking turns, the camera would get shifted off-axis and the 'C' key reset wouldn't properly realign it behind the aircraft.
+
+**Fix**: The reset function now:
+1. Sets a `forceAlignment` flag that bypasses interpolation
+2. Immediately recalculates the correct camera position
+3. Uses enhanced reset animation with faster lerp values
+4. Ensures proper alignment regardless of aircraft orientation
+
+**Implementation**:
+```typescript
+// Force immediate alignment on next update
+this.forceAlignment = true;
+
+// In update loop
+if (this.forceAlignment) {
+  this.currentOffset.copy(desiredPosition);
+  this.currentLookAt.copy(desiredLookAt);
+  this.forceAlignment = false;
+}
+```
 
 ## Implementation Details
 

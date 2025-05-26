@@ -345,6 +345,16 @@ npm run typecheck    # TypeScript validation
 npm run lint         # ESLint checks (if configured)
 ```
 
+### Running Tests
+```bash
+# Open browser test pages
+http://localhost:3000/test.html              # Basic test runner
+http://localhost:3000/test-all.html          # Comprehensive test suite
+http://localhost:3000/camera-lateral-test.html  # Camera movement tests
+
+# Test files are located in src/tests/
+```
+
 ### Git Repository
 ```bash
 # Remote repository
